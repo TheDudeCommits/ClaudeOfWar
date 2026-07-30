@@ -1,8 +1,23 @@
 #!/usr/bin/env python3
 """Batch shot capture. Serializes Godot runs (one Metal window at a time)."""
-import argparse, json, os, subprocess, sys, time
+import argparse, fcntl, json, os, subprocess, sys, time
+from contextlib import contextmanager
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LOCK = os.path.join(ROOT, ".godot.lock")
+
+
+@contextmanager
+def godot_lock():
+    """Only one Godot process at a time: parallel agents would otherwise race the
+    .godot import cache and fight over the Metal window."""
+    f = open(LOCK, "w")
+    fcntl.flock(f, fcntl.LOCK_EX)
+    try:
+        yield
+    finally:
+        fcntl.flock(f, fcntl.LOCK_UN)
+        f.close()
 GODOT = os.path.join(ROOT, "tools", "Godot.app", "Contents", "MacOS", "Godot")
 GAME = os.path.join(ROOT, "game")
 SHOTS = os.path.join(ROOT, "shots")
@@ -14,11 +29,12 @@ def capture(shot, out_path, timeout=180):
         os.remove(out_path)
     cmd = [GODOT, "--path", GAME, "--", f"--shot={shot}", f"--out={out_path}"]
     t0 = time.time()
-    try:
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-        out = (p.stdout or "") + (p.stderr or "")
-    except subprocess.TimeoutExpired as e:
-        out = f"TIMEOUT after {timeout}s\n" + (e.stdout or b"").decode("utf8", "replace")
+    with godot_lock():
+        try:
+            p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+            out = (p.stdout or "") + (p.stderr or "")
+        except subprocess.TimeoutExpired as e:
+            out = f"TIMEOUT after {timeout}s\n" + (e.stdout or b"").decode("utf8", "replace")
     ok = os.path.exists(out_path) and os.path.getsize(out_path) > 1000
     dt = time.time() - t0
     status = "OK " if ok else "FAIL"
