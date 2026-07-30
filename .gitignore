@@ -1,0 +1,4 @@
+tools/Godot.app/
+game/.godot/
+*.import
+.DS_Store
