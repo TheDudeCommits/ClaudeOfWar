@@ -1,0 +1,26 @@
+[gd_resource type="ShaderMaterial" load_steps=7 format=3]
+
+[ext_resource type="Shader" path="res://assets/arena/materials/surface.gdshader" id="shd"]
+[ext_resource type="Texture2D" path="res://assets/arena/textures/thatch_albedo.png" id="t0"]
+[ext_resource type="Texture2D" path="res://assets/arena/textures/thatch_normal.png" id="t1"]
+[ext_resource type="Texture2D" path="res://assets/arena/textures/thatch_orm.png" id="t2"]
+[ext_resource type="Texture2D" path="res://assets/arena/textures/detail_normal.png" id="t3"]
+[ext_resource type="Texture2D" path="res://assets/arena/textures/macro_variation.png" id="t4"]
+
+[resource]
+shader = ExtResource("shd")
+shader_parameter/albedo_tex = ExtResource("t0")
+shader_parameter/normal_tex = ExtResource("t1")
+shader_parameter/orm_tex = ExtResource("t2")
+shader_parameter/detail_normal_tex = ExtResource("t3")
+shader_parameter/macro_tex = ExtResource("t4")
+shader_parameter/tint = Color(1.0, 1.0, 1.0, 1)
+shader_parameter/sss_tint = Color(0.85, 0.9, 1.0, 1)
+shader_parameter/uv_scale = 1.0
+shader_parameter/normal_strength = 1.15
+shader_parameter/detail_scale = 6.0
+shader_parameter/detail_strength = 0.4
+shader_parameter/macro_strength = 0.38
+shader_parameter/roughness_mul = 1.0
+shader_parameter/ao_affect = 0.36
+shader_parameter/specular_v = 0.3

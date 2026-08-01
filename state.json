@@ -1,64 +1,161 @@
 {
-  "engine": "Godot 4.7.1 \u00b7 Forward+ \u00b7 Metal 4 \u00b7 Apple M2 \u00b7 1920\u00d71080 captures",
+  "engine": "Three.js r185 \u00b7 WebGL2/ANGLE-Metal \u00b7 postprocessing 6.39 + N8AO \u00b7 1920\u00d71080 captures",
   "pieces": [
     {
       "id": "render-stack",
       "name": "Render & Post Stack",
-      "status": "building",
-      "round": 1,
-      "gap": null,
-      "shots": [],
-      "history": [],
+      "status": "review",
+      "round": 6,
+      "gap": "Highlight clipping: pure-white pixels measure 0.006 against a reference median of 0.0001 \u2014 the hero hair and snow are blowing out.",
+      "shots": [
+        {
+          "path": "shots/round6/arena_ots.png",
+          "label": "arena OTS \u00b7 cold overcast",
+          "round": 6
+        }
+      ],
+      "history": [
+        {
+          "round": 1,
+          "verdict": "FAIL",
+          "note": "DOF blurred the entire frame incl. hero; focusDistance was normalised wrong"
+        },
+        {
+          "round": 3,
+          "verdict": "FAIL",
+          "note": "exposure blown, hero framed dead-centre instead of left third"
+        },
+        {
+          "round": 4,
+          "verdict": "FAIL",
+          "note": "261 silent shader compile errors \u2014 detail-normal injection referenced perturbNormal2Arb, removed in r185"
+        },
+        {
+          "round": 6,
+          "verdict": "FAIL",
+          "note": "all 7 grade metrics now inside reference bands; split-tone working (shadows -0.157 cool / highs +0.051 warm)"
+        }
+      ],
       "brief": "ACES tonemap, SSAO/SSIL/SSR, volumetric fog, bloom, DOF, CA, grain, vignette, colour grade. Judged on a fixed grey-box scene for mood and grade only."
     },
     {
       "id": "camera-rig",
       "name": "Camera Rig & Framing",
-      "status": "queued",
-      "round": 0,
+      "status": "review",
+      "round": 6,
       "gap": null,
-      "shots": [],
-      "history": [],
+      "shots": [
+        {
+          "path": "shots/round6/arena_ots.png",
+          "label": "arena OTS \u00b7 cold overcast",
+          "round": 6
+        }
+      ],
+      "history": [
+        {
+          "round": 6,
+          "verdict": "FAIL",
+          "note": "OTS rig ported to JS; hero now left-third, enemy in right two-thirds per art bible"
+        }
+      ],
       "brief": "Over-the-shoulder spring-arm rig, 50-62 FOV, hero at 22-35% of frame, lock-on, impact punch and shake."
     },
     {
       "id": "environment",
       "name": "Environment & Level Art",
-      "status": "building",
-      "round": 1,
-      "gap": null,
-      "shots": [],
-      "history": [],
+      "status": "review",
+      "round": 6,
+      "gap": "Rock formations read as uniform pebble tiling at the wrong world scale; no air particles anywhere in frame.",
+      "shots": [
+        {
+          "path": "shots/round6/arena_ots.png",
+          "label": "arena OTS",
+          "round": 6
+        },
+        {
+          "path": "shots/round4/arena_estab.png",
+          "label": "establishing (Godot build, pre-port)",
+          "round": 4
+        }
+      ],
+      "history": [
+        {
+          "round": 6,
+          "verdict": "FAIL",
+          "note": "ported from Godot; 500k tris across 11 material-split GLBs, detail normals now compiling"
+        }
+      ],
       "brief": "Nordic ruin arena: modular stone/wood kit, terrain, cliffs, snow, debris, decals, water. Four readable depth planes."
     },
     {
       "id": "lighting",
       "name": "Lighting & Atmosphere",
-      "status": "building",
-      "round": 1,
-      "gap": null,
-      "shots": [],
-      "history": [],
+      "status": "review",
+      "round": 6,
+      "gap": "Open floor still takes few cast shadows: sun is backlit so shadows fall away from camera. Needs a second key or repositioned geometry.",
+      "shots": [
+        {
+          "path": "shots/round6/arena_ots.png",
+          "label": "arena OTS \u00b7 cold overcast",
+          "round": 6
+        }
+      ],
+      "history": [
+        {
+          "round": 5,
+          "verdict": "FAIL",
+          "note": "shadows appeared absent \u2014 arena is walled by tall rock, whole floor sat in shade at 17deg elevation"
+        },
+        {
+          "round": 6,
+          "verdict": "FAIL",
+          "note": "swept 12 sun angles; el20/az205 backlit wins \u2014 long rakes, rim separation, sun flare"
+        }
+      ],
       "brief": "Two time-of-day recipes (cold overcast ruin, ember hellscape), SDFGI bounce, god rays, rim separation."
     },
     {
       "id": "hero",
       "name": "Hero Characters",
-      "status": "building",
-      "round": 1,
-      "gap": null,
-      "shots": [],
-      "history": [],
+      "status": "rejected",
+      "round": 6,
+      "gap": "BIGGEST GAP OVERALL: hair renders as a flat blown-white blob. The generated texture atlas has no strand detail in the hair regions \u2014 it is flat near-white paint. Needs regeneration or hair-card authoring.",
+      "shots": [
+        {
+          "path": "shots/round16/char_hero_closeup.png",
+          "label": "hero close-up (Godot build)",
+          "round": 16
+        }
+      ],
+      "history": [
+        {
+          "round": 16,
+          "verdict": "FAIL",
+          "note": "mesh + rig are good (83k tris, humanoid skeleton, 1 clip); texture atlas is the problem"
+        }
+      ],
       "brief": "Anime-styled fighters rendered with photoreal PBR+SSS. Hair cards, cloth, eyes. Judged on close-up."
     },
     {
       "id": "zombies",
       "name": "Zombie Enemies",
-      "status": "building",
-      "round": 1,
-      "gap": null,
-      "shots": [],
-      "history": [],
+      "status": "review",
+      "round": 6,
+      "gap": "Reads as a small green figure at distance; silhouette and material need work at combat range.",
+      "shots": [
+        {
+          "path": "shots/round6/arena_ots.png",
+          "label": "arena OTS \u00b7 cold overcast",
+          "round": 6
+        }
+      ],
+      "history": [
+        {
+          "round": 6,
+          "verdict": "FAIL",
+          "note": "draugr GLB ported and lit"
+        }
+      ],
       "brief": "Draugr-style undead roster with silhouette variety, rot/frost materials, emissive detail."
     },
     {

@@ -1,0 +1,18 @@
+{
+  "name": "claudeofwar",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5173",
+    "build": "vite build",
+    "preview": "vite preview --port 5173"
+  },
+  "dependencies": {
+    "n8ao": "^2.0.0",
+    "postprocessing": "^6.39.4",
+    "puppeteer": "^25.4.0",
+    "realism-effects": "^1.1.2",
+    "three": "^0.185.1",
+    "vite": "^8.2.0"
+  }
+}

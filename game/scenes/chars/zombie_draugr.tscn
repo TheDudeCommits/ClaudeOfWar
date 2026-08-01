@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3 uid="uid://bcofwzomb0001"]
+
+[ext_resource type="Script" path="res://scripts/chars/zombie_draugr.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://assets/chars/zombie_draugr.glb" id="2_model"]
+
+[node name="Zombie" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="Model" parent="." instance=ExtResource("2_model")]

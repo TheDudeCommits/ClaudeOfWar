@@ -1,0 +1,35 @@
+[gd_resource type="ShaderMaterial" load_steps=10 format=3]
+
+[ext_resource type="Shader" path="res://assets/arena/materials/ground.gdshader" id="shd"]
+[ext_resource type="Texture2D" path="res://assets/arena/textures/rock_albedo.png" id="t0"]
+[ext_resource type="Texture2D" path="res://assets/arena/textures/rock_normal.png" id="t1"]
+[ext_resource type="Texture2D" path="res://assets/arena/textures/rock_orm.png" id="t2"]
+[ext_resource type="Texture2D" path="res://assets/arena/textures/snow_albedo.png" id="t3"]
+[ext_resource type="Texture2D" path="res://assets/arena/textures/snow_normal.png" id="t4"]
+[ext_resource type="Texture2D" path="res://assets/arena/textures/snow_orm.png" id="t5"]
+[ext_resource type="Texture2D" path="res://assets/arena/textures/detail_normal.png" id="t6"]
+[ext_resource type="Texture2D" path="res://assets/arena/textures/macro_variation.png" id="t7"]
+
+[resource]
+shader = ExtResource("shd")
+shader_parameter/rock_alb = ExtResource("t0")
+shader_parameter/rock_nrm = ExtResource("t1")
+shader_parameter/rock_orm = ExtResource("t2")
+shader_parameter/snow_alb = ExtResource("t3")
+shader_parameter/snow_nrm = ExtResource("t4")
+shader_parameter/snow_orm = ExtResource("t5")
+shader_parameter/detail_normal_tex = ExtResource("t6")
+shader_parameter/macro_tex = ExtResource("t7")
+shader_parameter/rock_tint = Color(1, 1, 1, 1)
+shader_parameter/snow_tint = Color(1, 1, 1, 1)
+shader_parameter/rock_uv = 1.75
+shader_parameter/snow_uv = 1.05
+shader_parameter/detail_scale = 9.0
+shader_parameter/detail_strength = 0.45
+shader_parameter/macro_scale = 0.055
+shader_parameter/macro_strength = 0.4
+shader_parameter/snow_bias = 0.09
+shader_parameter/blend_sharp = 0.19
+shader_parameter/cavity_bias = 0.45
+shader_parameter/ao_affect = 0.3
+shader_parameter/snow_sss = 0.32

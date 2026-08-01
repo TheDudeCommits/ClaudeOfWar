@@ -1,0 +1,25 @@
+{
+  "_comment": "Hero portrait. Long-lens head-and-shoulders so the face is not distorted the way the 50-62 deg gameplay rig would distort it at 1.8 m. Shallow DOF, draugr looming defocused in the background for a second depth plane.",
+  "scene": "res://scenes/chars/char_stage.tscn",
+  "camera": {
+    "pos": [0.62, 1.68, 1.78],
+    "look_at": [0.05, 1.58, 0.12],
+    "fov": 21,
+    "near": 0.05,
+    "far": 400.0
+  },
+  "focus_on": "Hero",
+  "dof": {
+    "enabled": true,
+    "amount": 0.20,
+    "focus_height": 1.62,
+    "near_frac": 0.62,
+    "far_frac": 1.18
+  },
+  "exposure": 0.55,
+  "time_of_day": "cold_overcast",
+  "pose": { "Hero": { "clip": "portrait", "t": 0.55 },
+            "Zombie": { "clip": "lurch", "t": 0.7 } },
+  "warmup_frames": 110,
+  "resolution": [1920, 1080]
+}

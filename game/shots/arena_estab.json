@@ -1,0 +1,14 @@
+{
+  "_comment": "Wide establishing frame. Reads all four ART_BIBLE depth planes at once: collapsed truss + burnt post occluding the frame edges (0.5-3 m), the combat floor and its debris (4-9 m), the broken gate and village ruins (12-40 m), and cliffs, longhouse roofs and ship masts washing into fog (60 m+).",
+  "scene": "res://scenes/arena/arena.tscn",
+  "camera": {
+    "pos": [-0.6, 1.86, 11.6],
+    "look_at": [0.6, 0.55, -13.0],
+    "fov": 54,
+    "near": 0.05,
+    "far": 800.0
+  },
+  "time_of_day": "cold_overcast",
+  "warmup_frames": 110,
+  "resolution": [1920, 1080]
+}

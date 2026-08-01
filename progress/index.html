@@ -33,37 +33,77 @@ main{padding:22px 28px;max-width:1500px}
 footer{padding:26px 28px;color:#5d646e;font-size:11.5px}
 </style>
 <header><h1>ClaudeOfWar</h1>
-<div class=sub>Godot 4.7.1 · Forward+ · Metal 4 · Apple M2 · 1920×1080 captures &nbsp;·&nbsp; target: God of War Ragnarök reference plates &nbsp;·&nbsp; <b>0/11</b> pieces have won a blind test</div>
+<div class=sub>Three.js r185 · WebGL2/ANGLE-Metal · postprocessing 6.39 + N8AO · 1920×1080 captures &nbsp;·&nbsp; target: God of War Ragnarök reference plates &nbsp;·&nbsp; <b>0/11</b> pieces have won a blind test</div>
 <div class=bar>
-<span class=pill style='border-color:#6b728044;color:#6b7280'>Render &amp; Post Stack · r0</span>
-<span class=pill style='border-color:#6b728044;color:#6b7280'>Camera Rig &amp; Framing · r0</span>
-<span class=pill style='border-color:#6b728044;color:#6b7280'>Environment &amp; Level Art · r0</span>
-<span class=pill style='border-color:#6b728044;color:#6b7280'>Lighting &amp; Atmosphere · r0</span>
-<span class=pill style='border-color:#6b728044;color:#6b7280'>Hero Characters · r0</span>
-<span class=pill style='border-color:#6b728044;color:#6b7280'>Zombie Enemies · r0</span>
+<span class=pill style='border-color:#a855f744;color:#a855f7'>Render &amp; Post Stack · r6</span>
+<span class=pill style='border-color:#a855f744;color:#a855f7'>Camera Rig &amp; Framing · r6</span>
+<span class=pill style='border-color:#a855f744;color:#a855f7'>Environment &amp; Level Art · r6</span>
+<span class=pill style='border-color:#a855f744;color:#a855f7'>Lighting &amp; Atmosphere · r6</span>
+<span class=pill style='border-color:#ef444444;color:#ef4444'>Hero Characters · r6</span>
+<span class=pill style='border-color:#a855f744;color:#a855f7'>Zombie Enemies · r6</span>
 <span class=pill style='border-color:#6b728044;color:#6b7280'>Animation &amp; Physics · r0</span>
 <span class=pill style='border-color:#6b728044;color:#6b7280'>Combat Feel · r0</span>
 <span class=pill style='border-color:#6b728044;color:#6b7280'>VFX &amp; Impact · r0</span>
 <span class=pill style='border-color:#6b728044;color:#6b7280'>HUD &amp; UI · r0</span>
 <span class=pill style='border-color:#6b728044;color:#6b7280'>Audio · r0</span>
 </div></header><main>
-<div class=piece><div class=ph><span class=dot style='background:#6b7280'></span><span class=pn>Render &amp; Post Stack</span><span class=st style='color:#6b7280'>queued</span><span class=rd>round 0</span></div><div class=pb>
-<div class=empty>no captures yet</div>
+<div class=piece><div class=ph><span class=dot style='background:#a855f7'></span><span class=pn>Render &amp; Post Stack</span><span class=st style='color:#a855f7'>in review</span><span class=rd>round 6</span></div><div class=pb>
+<div class=gap><b>Biggest remaining gap:</b> Highlight clipping: pure-white pixels measure 0.006 against a reference median of 0.0001 — the hero hair and snow are blowing out.</div>
+<div class=shots>
+<div class=shot><a href='../shots/round6/arena_ots.png' target=_blank><img src='../shots/round6/arena_ots.png' loading=lazy></a><div class=cap><span>arena OTS · cold overcast</span><span>r6</span></div></div>
+</div>
+<div class=hist>
+<div class=hr><span class=hn>r6</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>all 7 grade metrics now inside reference bands; split-tone working (shadows -0.157 cool / highs +0.051 warm)</span></div>
+<div class=hr><span class=hn>r4</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>261 silent shader compile errors — detail-normal injection referenced perturbNormal2Arb, removed in r185</span></div>
+<div class=hr><span class=hn>r3</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>exposure blown, hero framed dead-centre instead of left third</span></div>
+<div class=hr><span class=hn>r1</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>DOF blurred the entire frame incl. hero; focusDistance was normalised wrong</span></div>
+</div>
 </div></div>
-<div class=piece><div class=ph><span class=dot style='background:#6b7280'></span><span class=pn>Camera Rig &amp; Framing</span><span class=st style='color:#6b7280'>queued</span><span class=rd>round 0</span></div><div class=pb>
-<div class=empty>no captures yet</div>
+<div class=piece><div class=ph><span class=dot style='background:#a855f7'></span><span class=pn>Camera Rig &amp; Framing</span><span class=st style='color:#a855f7'>in review</span><span class=rd>round 6</span></div><div class=pb>
+<div class=shots>
+<div class=shot><a href='../shots/round6/arena_ots.png' target=_blank><img src='../shots/round6/arena_ots.png' loading=lazy></a><div class=cap><span>arena OTS · cold overcast</span><span>r6</span></div></div>
+</div>
+<div class=hist>
+<div class=hr><span class=hn>r6</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>OTS rig ported to JS; hero now left-third, enemy in right two-thirds per art bible</span></div>
+</div>
 </div></div>
-<div class=piece><div class=ph><span class=dot style='background:#6b7280'></span><span class=pn>Environment &amp; Level Art</span><span class=st style='color:#6b7280'>queued</span><span class=rd>round 0</span></div><div class=pb>
-<div class=empty>no captures yet</div>
+<div class=piece><div class=ph><span class=dot style='background:#a855f7'></span><span class=pn>Environment &amp; Level Art</span><span class=st style='color:#a855f7'>in review</span><span class=rd>round 6</span></div><div class=pb>
+<div class=gap><b>Biggest remaining gap:</b> Rock formations read as uniform pebble tiling at the wrong world scale; no air particles anywhere in frame.</div>
+<div class=shots>
+<div class=shot><a href='../shots/round6/arena_ots.png' target=_blank><img src='../shots/round6/arena_ots.png' loading=lazy></a><div class=cap><span>arena OTS</span><span>r6</span></div></div>
+<div class=shot><a href='../shots/round4/arena_estab.png' target=_blank><img src='../shots/round4/arena_estab.png' loading=lazy></a><div class=cap><span>establishing (Godot build, pre-port)</span><span>r4</span></div></div>
+</div>
+<div class=hist>
+<div class=hr><span class=hn>r6</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>ported from Godot; 500k tris across 11 material-split GLBs, detail normals now compiling</span></div>
+</div>
 </div></div>
-<div class=piece><div class=ph><span class=dot style='background:#6b7280'></span><span class=pn>Lighting &amp; Atmosphere</span><span class=st style='color:#6b7280'>queued</span><span class=rd>round 0</span></div><div class=pb>
-<div class=empty>no captures yet</div>
+<div class=piece><div class=ph><span class=dot style='background:#a855f7'></span><span class=pn>Lighting &amp; Atmosphere</span><span class=st style='color:#a855f7'>in review</span><span class=rd>round 6</span></div><div class=pb>
+<div class=gap><b>Biggest remaining gap:</b> Open floor still takes few cast shadows: sun is backlit so shadows fall away from camera. Needs a second key or repositioned geometry.</div>
+<div class=shots>
+<div class=shot><a href='../shots/round6/arena_ots.png' target=_blank><img src='../shots/round6/arena_ots.png' loading=lazy></a><div class=cap><span>arena OTS · cold overcast</span><span>r6</span></div></div>
+</div>
+<div class=hist>
+<div class=hr><span class=hn>r6</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>swept 12 sun angles; el20/az205 backlit wins — long rakes, rim separation, sun flare</span></div>
+<div class=hr><span class=hn>r5</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>shadows appeared absent — arena is walled by tall rock, whole floor sat in shade at 17deg elevation</span></div>
+</div>
 </div></div>
-<div class=piece><div class=ph><span class=dot style='background:#6b7280'></span><span class=pn>Hero Characters</span><span class=st style='color:#6b7280'>queued</span><span class=rd>round 0</span></div><div class=pb>
-<div class=empty>no captures yet</div>
+<div class=piece><div class=ph><span class=dot style='background:#ef4444'></span><span class=pn>Hero Characters</span><span class=st style='color:#ef4444'>sent back</span><span class=rd>round 6</span></div><div class=pb>
+<div class=gap><b>Biggest remaining gap:</b> BIGGEST GAP OVERALL: hair renders as a flat blown-white blob. The generated texture atlas has no strand detail in the hair regions — it is flat near-white paint. Needs regeneration or hair-card authoring.</div>
+<div class=shots>
+<div class=shot><a href='../shots/round16/char_hero_closeup.png' target=_blank><img src='../shots/round16/char_hero_closeup.png' loading=lazy></a><div class=cap><span>hero close-up (Godot build)</span><span>r16</span></div></div>
+</div>
+<div class=hist>
+<div class=hr><span class=hn>r16</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>mesh + rig are good (83k tris, humanoid skeleton, 1 clip); texture atlas is the problem</span></div>
+</div>
 </div></div>
-<div class=piece><div class=ph><span class=dot style='background:#6b7280'></span><span class=pn>Zombie Enemies</span><span class=st style='color:#6b7280'>queued</span><span class=rd>round 0</span></div><div class=pb>
-<div class=empty>no captures yet</div>
+<div class=piece><div class=ph><span class=dot style='background:#a855f7'></span><span class=pn>Zombie Enemies</span><span class=st style='color:#a855f7'>in review</span><span class=rd>round 6</span></div><div class=pb>
+<div class=gap><b>Biggest remaining gap:</b> Reads as a small green figure at distance; silhouette and material need work at combat range.</div>
+<div class=shots>
+<div class=shot><a href='../shots/round6/arena_ots.png' target=_blank><img src='../shots/round6/arena_ots.png' loading=lazy></a><div class=cap><span>arena OTS · cold overcast</span><span>r6</span></div></div>
+</div>
+<div class=hist>
+<div class=hr><span class=hn>r6</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>draugr GLB ported and lit</span></div>
+</div>
 </div></div>
 <div class=piece><div class=ph><span class=dot style='background:#6b7280'></span><span class=pn>Animation &amp; Physics</span><span class=st style='color:#6b7280'>queued</span><span class=rd>round 0</span></div><div class=pb>
 <div class=empty>no captures yet</div>
@@ -80,4 +120,4 @@ footer{padding:26px 28px;color:#5d646e;font-size:11.5px}
 <div class=piece><div class=ph><span class=dot style='background:#6b7280'></span><span class=pn>Audio</span><span class=st style='color:#6b7280'>queued</span><span class=rd>round 0</span></div><div class=pb>
 <div class=empty>no captures yet</div>
 </div></div>
-</main><footer>auto-refreshes every 10s · generated 00:16:33</footer>
+</main><footer>auto-refreshes every 10s · generated 23:35:35</footer>

@@ -1,0 +1,25 @@
+{
+  "_comment": "Draugr mid-shot, thighs up. Camera at chest height with a -9 deg pitch per ART_BIBLE §1; wider lens than the hero portrait so the hunched silhouette reads whole.",
+  "scene": "res://scenes/chars/char_stage.tscn",
+  "camera": {
+    "pos": [-0.62, 1.60, -0.62],
+    "look_at": [-1.22, 1.32, -2.22],
+    "fov": 38,
+    "near": 0.05,
+    "far": 400.0
+  },
+  "focus_on": "Zombie",
+  "dof": {
+    "enabled": true,
+    "amount": 0.14,
+    "focus_height": 1.45,
+    "near_frac": 0.55,
+    "far_frac": 1.30
+  },
+  "exposure": 0.7,
+  "time_of_day": "cold_overcast",
+  "pose": { "Zombie": { "clip": "lurch", "t": 0.65 },
+            "Hero": { "clip": "guard", "t": 0.5 } },
+  "warmup_frames": 110,
+  "resolution": [1920, 1080]
+}
