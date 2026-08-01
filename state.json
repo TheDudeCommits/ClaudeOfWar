@@ -5,13 +5,13 @@
       "id": "render-stack",
       "name": "Render & Post Stack",
       "status": "review",
-      "round": 6,
-      "gap": "Highlight clipping: pure-white pixels measure 0.006 against a reference median of 0.0001 \u2014 the hero hair and snow are blowing out.",
+      "round": 9,
+      "gap": "black_point is 0.109 against a band of 0.005-0.060 \u2014 the frame is milky and holds no deep shadow anywhere.",
       "shots": [
         {
-          "path": "shots/round6/arena_ots.png",
-          "label": "arena OTS \u00b7 cold overcast",
-          "round": 6
+          "path": "shots/round9/arena_ots.png",
+          "label": "arena OTS \u00b7 framing + grade fixed",
+          "round": 9
         }
       ],
       "history": [
@@ -34,6 +34,16 @@
           "round": 6,
           "verdict": "FAIL",
           "note": "all 7 grade metrics now inside reference bands; split-tone working (shadows -0.157 cool / highs +0.051 warm)"
+        },
+        {
+          "round": 7,
+          "verdict": "FAIL",
+          "note": "CRITIC: grade clipped red to zero on 7.58% of frame (ref 0.02%) \u2014 lift applied before the S-curve got mapped below zero and clamped"
+        },
+        {
+          "round": 9,
+          "verdict": "FAIL",
+          "note": "grade reordered S-curve->lift->tint: sat_p95 1.000->0.55 (was the only outright band failure), pure_white 0.0024->0.00038"
         }
       ],
       "brief": "ACES tonemap, SSAO/SSIL/SSR, volumetric fog, bloom, DOF, CA, grain, vignette, colour grade. Judged on a fixed grey-box scene for mood and grade only."
@@ -42,13 +52,13 @@
       "id": "camera-rig",
       "name": "Camera Rig & Framing",
       "status": "review",
-      "round": 6,
+      "round": 9,
       "gap": null,
       "shots": [
         {
-          "path": "shots/round6/arena_ots.png",
-          "label": "arena OTS \u00b7 cold overcast",
-          "round": 6
+          "path": "shots/round9/arena_ots.png",
+          "label": "arena OTS \u00b7 framing + grade fixed",
+          "round": 9
         }
       ],
       "history": [
@@ -56,6 +66,16 @@
           "round": 6,
           "verdict": "FAIL",
           "note": "OTS rig ported to JS; hero now left-third, enemy in right two-thirds per art bible"
+        },
+        {
+          "round": 7,
+          "verdict": "FAIL",
+          "note": "CRITIC: pitch sign inverted \u2014 camera y=1.198 (band 1.50-1.75), tilt +2.12 UP (band -4 to -12), hero head at 0.198"
+        },
+        {
+          "round": 9,
+          "verdict": "FAIL",
+          "note": "fixed: camera rides above the anchor. camY 1.69, tilt -5.6, area 24%. Art bible head band was my own bad estimate and was corrected against the plates."
         }
       ],
       "brief": "Over-the-shoulder spring-arm rig, 50-62 FOV, hero at 22-35% of frame, lock-on, impact punch and shake."
@@ -63,19 +83,19 @@
     {
       "id": "environment",
       "name": "Environment & Level Art",
-      "status": "review",
-      "round": 6,
-      "gap": "Rock formations read as uniform pebble tiling at the wrong world scale; no air particles anywhere in frame.",
+      "status": "building",
+      "round": 10,
+      "gap": "CRITIC #1 GAP: no macro-scale variation. macro_variation.png was baked and never wired; ground autocorrelation lag-4 r=0.94 vs reference 0.756. Builder running.",
       "shots": [
         {
-          "path": "shots/round6/arena_ots.png",
-          "label": "arena OTS",
-          "round": 6
+          "path": "shots/round7/blind_gow5_match.png",
+          "label": "BLIND A/B vs Gow5.jpg \u2014 critic identified ours instantly",
+          "round": 7
         },
         {
-          "path": "shots/round4/arena_estab.png",
-          "label": "establishing (Godot build, pre-port)",
-          "round": 4
+          "path": "shots/round9/arena_ots.png",
+          "label": "arena OTS \u00b7 framing + grade fixed",
+          "round": 9
         }
       ],
       "history": [
@@ -83,6 +103,11 @@
           "round": 6,
           "verdict": "FAIL",
           "note": "ported from Godot; 500k tris across 11 material-split GLBs, detail normals now compiling"
+        },
+        {
+          "round": 7,
+          "verdict": "FAIL",
+          "note": "CRITIC: ground is one tiling texture at one scale across 45% of frame; sunlit cobble luma 0.914 mirrors the sun into glitter"
         }
       ],
       "brief": "Nordic ruin arena: modular stone/wood kit, terrain, cliffs, snow, debris, decals, water. Four readable depth planes."
@@ -91,13 +116,13 @@
       "id": "lighting",
       "name": "Lighting & Atmosphere",
       "status": "review",
-      "round": 6,
-      "gap": "Open floor still takes few cast shadows: sun is backlit so shadows fall away from camera. Needs a second key or repositioned geometry.",
+      "round": 9,
+      "gap": "Ambient fill is washing out every shadow \u2014 nothing in frame is genuinely dark.",
       "shots": [
         {
-          "path": "shots/round6/arena_ots.png",
-          "label": "arena OTS \u00b7 cold overcast",
-          "round": 6
+          "path": "shots/round9/arena_ots.png",
+          "label": "arena OTS \u00b7 framing + grade fixed",
+          "round": 9
         }
       ],
       "history": [
@@ -117,8 +142,8 @@
     {
       "id": "hero",
       "name": "Hero Characters",
-      "status": "rejected",
-      "round": 6,
+      "status": "building",
+      "round": 8,
       "gap": "BIGGEST GAP OVERALL: hair renders as a flat blown-white blob. The generated texture atlas has no strand detail in the hair regions \u2014 it is flat near-white paint. Needs regeneration or hair-card authoring.",
       "shots": [
         {
@@ -181,11 +206,17 @@
     {
       "id": "vfx",
       "name": "VFX & Impact",
-      "status": "queued",
-      "round": 0,
-      "gap": null,
+      "status": "building",
+      "round": 10,
+      "gap": "Zero particles in the entire scene (probe: 0 Points, 0 Sprites). flake.png and ember.png baked and never loaded. Empty air is an instant-fail tell. Builder running.",
       "shots": [],
-      "history": [],
+      "history": [
+        {
+          "round": 7,
+          "verdict": "FAIL",
+          "note": "CRITIC: empty air + no near-camera occluder in any framing"
+        }
+      ],
       "brief": "Weapon trails, sparks, blood, impact lights, ambient embers/snow/dust. Everything additive above 1.0 HDR."
     },
     {

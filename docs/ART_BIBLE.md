@@ -23,13 +23,13 @@ Measured from `god-of-war-ragnarok-pc-screenshot-pitmine-combat-02-en-10may24-1.
 
 | Property | Value | Notes |
 |---|---|---|
-| Rig | Over-the-shoulder, **right shoulder**, camera low | Hero's head sits at ~0.42–0.55 of frame height |
+| Rig | Over-the-shoulder, **right shoulder**, camera low | Hero's head top sits at **0.15–0.40** of frame height (measured across plates; the pitmine shot is ~0.15, `images (15)` ~0.33). An earlier draft of this table said 0.42–0.55 — that was an eyeball estimate, it is wrong, and it is unsatisfiable alongside the camera-height and hero-area bands. |
 | Hero screen area | **22–35% of frame** | This is the #1 tell. Web games put the camera too far back. |
 | Hero horizontal | Left third, centered ~0.28–0.38 x | Enemy occupies the right two-thirds |
 | FOV | **50–62°** vertical-ish, wide and close | NOT 45. Wide FOV + close distance = the GoW look |
 | Pitch | −4° to −12° (slightly down) | Almost never level, never high-angle |
 | Distance | 1.6–2.6 m from hero's chest | Extremely close |
-| Height | 1.5–1.75 m (shoulder/head height) | Never above the head |
+| Height | 1.5–1.75 m (shoulder/head height) | Never above the head. Reached via shoulder anchor 1.35 m + pitch rise, NOT by raising the anchor. |
 | Roll | 0°, except ±1.5° during impacts | |
 | Near clip | 0.05 | Hero's shoulder clips very close |
 

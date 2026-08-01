@@ -19,10 +19,10 @@ export class OTSCamera {
     // Negative X: camera rides the hero's right shoulder, which puts the hero
     // in the LEFT third and leaves the right two-thirds for the enemy — the
     // reference composition. Positive X mirrors it and reads wrong.
-    this.shoulder = new THREE.Vector3(-0.62, 1.46, 0);
-    this.distance = 2.15;
+    this.shoulder = new THREE.Vector3(-0.62, 1.35, 0);
+    this.distance = 2.45;
     this.fovBase = 56;
-    this.pitch = THREE.MathUtils.degToRad(-7);
+    this.pitch = THREE.MathUtils.degToRad(-8);
     this.lockHeroBias = 0.68;
 
     this.followLag = 12;
@@ -78,10 +78,17 @@ export class OTSCamera {
       if (f.lengthSq() > 0.01) yaw = Math.atan2(f.x, f.z) + Math.PI;
     }
 
+    // `pitch` is negative for "camera looks down", so the camera must sit ABOVE
+    // the shoulder anchor and let lookAt tilt it down onto the aim. Using
+    // sin(pitch) directly puts it below the anchor and tilts the view upward —
+    // which drops the hero's head to the top of frame and reads as a low, weak
+    // angle instead of the reference's slightly-above-shoulder framing.
+    const rise = Math.sin(-this.pitch);
+    const run = Math.cos(this.pitch);
     const dir = new THREE.Vector3(
-      Math.sin(yaw) * Math.cos(this.pitch),
-      Math.sin(this.pitch),
-      Math.cos(yaw) * Math.cos(this.pitch));
+      Math.sin(yaw) * run,
+      rise,
+      Math.cos(yaw) * run);
     cam.position.copy(this._pos).addScaledVector(dir, this.distance);
 
     // Trauma-squared so light hits stay subtle and heavy ones bite.

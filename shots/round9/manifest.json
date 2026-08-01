@@ -1,8 +1,7 @@
 {
   "round": "9",
   "shots": {
-    "look_cold": true,
-    "look_ember": true
+    "arena_ots": true
   },
-  "ts": 1785435224.8906398
+  "ts": 1785603294438
 }

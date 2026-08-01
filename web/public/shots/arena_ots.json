@@ -1,6 +1,6 @@
 {
   "time_of_day": "cold_overcast",
-  "camera": { "rig": "ots", "fov": 56, "distance": 2.15, "pitch": -7 },
+  "camera": { "rig": "ots", "fov": 56, "distance": 2.45, "pitch": -8, "shoulder": [-0.62, 1.35, 0] },
   "actors": {
     "hero":   { "pos": [1.3, 0, 1.6], "rot_y": 195 },
     "zombie": { "pos": [-1.2, 0, -3.4], "rot_y": 20 }

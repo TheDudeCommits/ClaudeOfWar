@@ -21,11 +21,7 @@ uniform float gamma;
 float luma(vec3 c){ return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 
 void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
-  vec3 c = inputColor.rgb;
-
-  // Lift the floor first so nothing sits at pure black, then re-gamma.
-  c = c * (1.0 - lift) + lift;
-  c = pow(max(c, 0.0), vec3(gamma));
+  vec3 c = pow(max(inputColor.rgb, 0.0), vec3(gamma));
 
   // Filmic S-curve around 0.5 pivot.
   c = clamp((c - 0.5) * contrast + 0.5, 0.0, 1.0);
@@ -39,6 +35,11 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   float sw = pow(1.0 - clamp(l, 0.0, 1.0), 2.0);
   float hw = pow(clamp(l, 0.0, 1.0), 2.0);
   c += shadowTint * sw + highTint * hw;
+
+  // Lift LAST so it actually sets the black floor. Applied before the S-curve
+  // it gets mapped back below zero by the contrast expansion and clamped to
+  // pure black — which is the single most conspicuous amateur tell.
+  c = max(c, 0.0) * (1.0 - lift) + lift;
 
   outputColor = vec4(clamp(c, 0.0, 1.0), inputColor.a);
 }

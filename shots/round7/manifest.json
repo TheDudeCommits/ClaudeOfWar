@@ -1,8 +1,7 @@
 {
   "round": "7",
   "shots": {
-    "look_cold": true,
-    "look_ember": true
+    "arena_gow5_match": true
   },
-  "ts": 1785434911.779632
+  "ts": 1785602633263
 }
