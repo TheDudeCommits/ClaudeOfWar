@@ -44,6 +44,15 @@ export class OTSCamera {
     this.avoid = [];            // actor roots to push away from
     this._ray = new THREE.Raycaster();
     this._curDist = this.distance;
+    // Scratch: this runs every frame and allocated 4+ vectors per call.
+    this._sAnchor = new THREE.Vector3();
+    this._sWant = new THREE.Vector3();
+    this._sDir = new THREE.Vector3();
+    this._sLook = new THREE.Vector3();
+    this._sF = new THREE.Vector3();
+    this.rayStride = 2;          // frames between occlusion casts (BVH makes this cheap)
+    this._rayCountdown = 0;
+    this._rayWant = this.distance;
   }
 
   /** Landed hit. amount 0..1. */
@@ -60,16 +69,17 @@ export class OTSCamera {
     const cam = this.camera;
 
     const basisX = this._tmp.set(1, 0, 0).applyQuaternion(this.target.quaternion);
-    const anchor = new THREE.Vector3()
+    const anchor = this._sAnchor
       .copy(this.target.position)
       .addScaledVector(basisX, this.shoulder.x)
       .setY(this.target.position.y + this.shoulder.y);
 
-    let wantAim = anchor.clone();
+    const wantAim = this._sWant.copy(anchor);
     if (this.lockOn) {
       // Weight toward the hero so the enemy reads in the right two-thirds
       // rather than both actors sitting dead centre.
-      const t = this.lockOn.position.clone().setY(this.lockOn.position.y + 1.1);
+      const t = this._sF.copy(this.lockOn.position);
+      t.y = this.lockOn.position.y + 1.1;
       wantAim.lerp(t, 1 - this.lockHeroBias);
     }
 
@@ -82,7 +92,7 @@ export class OTSCamera {
 
     let yaw = 0;
     if (this.lockOn) {
-      const f = this.lockOn.position.clone().sub(this._pos);
+      const f = this._sF.copy(this.lockOn.position).sub(this._pos);
       f.y = 0;
       if (f.lengthSq() > 0.01) yaw = Math.atan2(f.x, f.z) + Math.PI;
     }
@@ -94,18 +104,28 @@ export class OTSCamera {
     // angle instead of the reference's slightly-above-shoulder framing.
     const rise = Math.sin(-this.pitch);
     const run = Math.cos(this.pitch);
-    const dir = new THREE.Vector3(
+    const dir = this._sDir.set(
       Math.sin(yaw) * run,
       rise,
       Math.cos(yaw) * run);
 
     // Pull in until the line from the shoulder anchor to the camera is clear.
+    //
+    // The arena is ~500k triangles across 11 merged meshes with no BVH, so
+    // raycasting it every frame dominated the CPU budget. Occlusion does not
+    // need 60 Hz — the camera eases anyway — so this runs on a stride and the
+    // result is held between casts.
     let want = this.distance;
     if (this.occluders.length) {
-      this._ray.set(this._pos, dir);
-      this._ray.far = this.distance + 0.3;
-      const hits = this._ray.intersectObjects(this.occluders, true);
-      if (hits.length) want = Math.max(0.75, hits[0].distance - 0.28);
+      if (--this._rayCountdown <= 0) {
+        this._rayCountdown = this.rayStride;
+        this._ray.set(this._pos, dir);
+        this._ray.far = this.distance + 0.3;
+        const hits = this._ray.intersectObjects(this.occluders, true);
+        this._rayWant = hits.length ? Math.max(0.75, hits[0].distance - 0.28)
+                                    : this.distance;
+      }
+      want = this._rayWant;
     }
     // Enemies are capsules, not geometry we want to raycast every frame; push
     // the camera in when one is close to the sight line instead.
@@ -127,7 +147,7 @@ export class OTSCamera {
     this._trauma = Math.max(0, this._trauma - this.traumaDecay * dt);
     const s = this._trauma * this._trauma;
     const t = performance.now() / 1000 * 22 + this._seed;
-    const look = this._aim.clone();
+    const look = this._sLook.copy(this._aim);
     if (s > 1e-4) {
       look.x += (Math.sin(t * 1.31) + Math.sin(t * 2.7)) * 0.5 * this.maxShakePos * s;
       look.y += (Math.sin(t * 1.77) + Math.sin(t * 3.1)) * 0.5 * this.maxShakePos * s;

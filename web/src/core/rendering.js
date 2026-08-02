@@ -22,17 +22,20 @@ import { GradeEffect, ExposureEffect } from './grade.js';
  * below 30 — `?q=low` is the escape hatch and holds ~57 fps even hot.
  */
 export const PRESETS = {
-  // MSAA is dropped at every level. Measured here, 2x MSAA on a half-float
-  // target cost 4.5x the frame time (56 fps -> 12 fps) for edge quality that
-  // bloom, grain and the sub-native upscale largely hide anyway. Resolution
-  // scale is the dial instead.
-  // 4096 shadows measured ~20ms/frame here for no visible gain at this
-  // frustum size, so Fidelity spends its budget on resolution and AO instead.
-  high:   { scale: 1.00, msaa: 0, ao: true,  aoHalfRes: false, dofScale: 0.75,
+  // MSAA is BACK. It was dropped on measurements that turned out to be
+  // meaningless: the earlier "4.5x frame time" figure was taken while the page
+  // was rendering two post chains per tick and while an unthrottled 500k-tri
+  // raycast dominated the CPU. With those fixed, real combat is vsync-capped
+  // with headroom, and jaggies on rooflines, fences and the spear were the
+  // most conspicuous remaining tell.
+  // 4x MSAA plus a 4096 shadow map reintroduced an 850ms hitch and dropped
+  // Fidelity under 30 in combat. 2x + 2048 keeps it above the floor; the
+  // preset earns its name from native resolution, full-res AO and a wider DOF.
+  high:   { scale: 1.00, msaa: 2, ao: true,  aoHalfRes: false, dofScale: 0.75,
             bloomKernel: KernelSize.HUGE,   shadow: 2048 },
-  medium: { scale: 0.80, msaa: 0, ao: true,  aoHalfRes: true,  dofScale: 0.5,
+  medium: { scale: 0.85, msaa: 2, ao: true,  aoHalfRes: true,  dofScale: 0.5,
             bloomKernel: KernelSize.LARGE,  shadow: 2048 },
-  low:    { scale: 0.60, msaa: 0, ao: false, aoHalfRes: true, dofScale: 0.35,
+  low:    { scale: 0.65, msaa: 0, ao: false, aoHalfRes: true, dofScale: 0.35,
             bloomKernel: KernelSize.MEDIUM, shadow: 1024 },
 };
 
@@ -96,9 +99,9 @@ export class Post {
     // contact shadow quality is a large part of the "expensive" read.
     this.ao = new N8AOPostPass(scene, camera,
       renderer.domElement.width, renderer.domElement.height);
-    this.ao.configuration.aoRadius = 1.6;
+    this.ao.configuration.aoRadius = 0.65;
     this.ao.configuration.distanceFalloff = 1.0;
-    this.ao.configuration.intensity = 3.2;
+    this.ao.configuration.intensity = 4.0;
     this.ao.configuration.color = new THREE.Color(0x0a1220);
     // Half-res AO with a cheaper denoise: 30ms -> ~8ms. AO is low-frequency
     // by nature, so the resolution loss is invisible next to the frame cost.
@@ -180,11 +183,11 @@ export const TOD = {
     sun: { color: 0xffd8a2, intensity: 4.9, elevation: 20, azimuth: 205 },
     // Less saturated blue: highlights measured COLD (-0.057) where the
     // reference is warm (+0.028), and a heavily blue fill is why.
-    fill: { color: 0x6d7e93, intensity: 0.38 },
-    rim: { color: 0xbcd4f0, intensity: 1.25 },
+    fill: { color: 0x6d7e93, intensity: 0.12 },
+    rim: { color: 0xbcd4f0, intensity: 0.0 },
     sky: { turbidity: 7.5, rayleigh: 2.6, mieCoefficient: 0.006, mieG: 0.72 },
     fog: { color: 0x8fa4b8, density: 0.030 },
-    env: 0.48,
+    env: 0.22,
     grade: {
       shadowTint: new THREE.Vector3(-0.034, -0.008, 0.070),
       highTint: new THREE.Vector3(0.150, 0.066, -0.085),

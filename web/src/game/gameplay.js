@@ -11,6 +11,21 @@ import { Animator, HERO_ANIM, ZOMBIE_ANIM } from '../anim/procedural.js';
  */
 
 const UP = new THREE.Vector3(0, 1, 0);
+
+// Scratch vectors. The critic measured real combat at ~29ms/frame with only
+// ~2.6ms of that on the GPU, plus 200-790ms stalls — i.e. the game was
+// CPU-bound and GC-bound, not fill-rate bound. Per-enemy-per-frame Vector3
+// allocation in these hot paths was the source; everything below reuses.
+const _v1 = new THREE.Vector3();
+const _v2 = new THREE.Vector3();
+const _v3 = new THREE.Vector3();
+const _v4 = new THREE.Vector3();
+const _zero = new THREE.Vector3();
+// hurt() is called from inside loops that are themselves holding _v1.._v4, so
+// it must not share them: Player.swing keeps its facing vector in _v1 across
+// the enemy loop, and the first hit would otherwise corrupt the facing test
+// for every enemy after it.
+const _hurtV = new THREE.Vector3();
 const ARENA_R = 9.0;   // keep actors inside the dressed floor
 
 /* ------------------------------- input ------------------------------- */
@@ -69,7 +84,7 @@ export class Actor {
     this.hp -= amount;
     this._flash = 1;
     if (this.anim) {
-      const local = new THREE.Vector3().copy(fromDir).setY(0).normalize()
+      const local = _hurtV.copy(fromDir).setY(0).normalize()
         .applyAxisAngle(UP, -this.root.rotation.y);
       this.anim.onHit(THREE.MathUtils.clamp(local.x, -1, 1));
     }
@@ -139,10 +154,10 @@ export class Player extends Actor {
     // Movement is camera-relative, which is what makes an OTS game feel right.
     if (!busy) {
       const m = input.move();
-      const fwd = new THREE.Vector3();
+      const fwd = _v1;
       camera.getWorldDirection(fwd); fwd.y = 0; fwd.normalize();
-      const right = new THREE.Vector3().crossVectors(fwd, UP).normalize();
-      const dir = new THREE.Vector3()
+      const right = _v2.crossVectors(fwd, UP).normalize();
+      const dir = _v3.set(0, 0, 0)
         .addScaledVector(right, m.x).addScaledVector(fwd, -m.y);
       const moving = dir.lengthSq() > 1e-4;
       if (moving) {
@@ -151,15 +166,15 @@ export class Player extends Actor {
         this.vel.lerp(dir.multiplyScalar(sp), 1 - Math.exp(-14 * dt));
         this.face = Math.atan2(dir.x, dir.z);
       } else {
-        this.vel.lerp(new THREE.Vector3(), 1 - Math.exp(-18 * dt));
+        this.vel.lerp(_zero, 1 - Math.exp(-18 * dt));
       }
       this.state = moving ? 'run' : 'idle';
 
       if (input.consumeDodge() && this.stamina > 25) {
         this.state = 'dodge'; this.t = 0; this.stamina -= 25;
         this.iframes = 0.30;   // ART_BIBLE §11
-        const d = moving ? dir.clone().normalize()
-          : new THREE.Vector3(Math.sin(this.face), 0, Math.cos(this.face)).negate();
+        const d = moving ? _v4.copy(dir).normalize()
+          : _v4.set(Math.sin(this.face), 0, Math.cos(this.face)).negate();
         this.vel.copy(d.multiplyScalar(9.5));
       } else if (input.consumeAttack() && this.stamina > 12) {
         this.state = 'attack'; this.t = 0; this.stamina -= 12;
@@ -176,7 +191,7 @@ export class Player extends Actor {
       if (k < 0.28) {
         this.vel.multiplyScalar(Math.exp(-9 * dt));            // wind up
       } else if (k < 0.46) {
-        const f = new THREE.Vector3(Math.sin(this.face), 0, Math.cos(this.face));
+        const f = _v1.set(Math.sin(this.face), 0, Math.cos(this.face));
         this.vel.copy(f.multiplyScalar(this.combo === 2 ? 6.5 : 4.4));  // lunge
       } else {
         this.vel.multiplyScalar(Math.exp(-14 * dt));           // recovery
@@ -193,7 +208,7 @@ export class Player extends Actor {
     }
 
     this.root.position.addScaledVector(this.vel, dt);
-    this.root.position.add(this._recoil.clone().multiplyScalar(dt * 8));
+    this.root.position.addScaledVector(this._recoil, dt * 8);
     this.clampToArena();
     this.root.rotation.y = this.face + Math.PI;
 
@@ -208,11 +223,11 @@ export class Player extends Actor {
 
   swing(enemies, fx) {
     const origin = this.root.position;
-    const f = new THREE.Vector3(Math.sin(this.face), 0, Math.cos(this.face));
+    const f = _v1.set(Math.sin(this.face), 0, Math.cos(this.face));
     let hit = 0;
     for (const e of enemies) {
       if (e.dead) continue;
-      const to = e.root.position.clone().sub(origin); to.y = 0;
+      const to = _v2.copy(e.root.position).sub(origin); to.y = 0;
       const dist = to.length();
       if (dist > this.hitbox.reach + e.radius) continue;
       if (to.normalize().dot(f) < Math.cos(this.hitbox.arc * 0.5)) continue;
@@ -221,9 +236,9 @@ export class Player extends Actor {
       e.stagger = 0.42;
       hit++;
       this.rage = Math.min(100, this.rage + 8);
-      fx.impact(e.root.position.clone().setY(1.15), this.combo === 2 ? 1 : 0.62);
+      fx.impact(_v3.copy(e.root.position).setY(1.15), this.combo === 2 ? 1 : 0.62);
     }
-    fx.swing(origin.clone().addScaledVector(f, 1.2).setY(1.25), this.combo);
+    fx.swing(_v3.copy(origin).addScaledVector(f, 1.2).setY(1.25), this.combo);
     if (hit === 0) fx.whiff();
   }
 }
@@ -255,7 +270,7 @@ export class Zombie extends Actor {
     this.telegraph = Math.max(0, this.telegraph - dt * 2.4);
     this.attackCd -= dt;
 
-    const to = player.root.position.clone().sub(this.root.position); to.y = 0;
+    const to = _v1.copy(player.root.position).sub(this.root.position); to.y = 0;
     const dist = to.length();
     if (dist > 1e-3) this.face = Math.atan2(to.x, to.z);
 
@@ -264,10 +279,10 @@ export class Zombie extends Actor {
     } else if (dist > 1.5) {
       const d = to.normalize();
       // Separation so the pack doesn't collapse into one silhouette.
-      const sep = new THREE.Vector3();
+      const sep = _v2.set(0, 0, 0);
       for (const o of others) {
         if (o === this || o.dead) continue;
-        const off = this.root.position.clone().sub(o.root.position); off.y = 0;
+        const off = _v3.copy(this.root.position).sub(o.root.position); off.y = 0;
         const l = off.length();
         if (l < 1.9 && l > 1e-3) sep.add(off.multiplyScalar((1.9 - l) / l));
       }
@@ -291,17 +306,17 @@ export class Zombie extends Actor {
       if (this._swingAt !== undefined && this._swingAt <= 0 && this._swingAt > -0.05) {
         const d2 = player.root.position.distanceTo(this.root.position);
         if (d2 < 2.0 && player.iframes <= 0 && !player.dead) {
-          const from = this.root.position.clone().sub(player.root.position);
+          const from = _v4.copy(this.root.position).sub(player.root.position);
           if (player.parryWindow > 0) {
             // Parry: no damage, the attacker is staggered and pushed back.
             this.stagger = 0.9;
-            this.hurt(0, from.clone().negate());
+            this.hurt(0, _v2.copy(from).negate());
             player.rage = Math.min(100, player.rage + 18);
-            fx.parry(this.root.position.clone().setY(1.2));
+            fx.parry(_v2.copy(this.root.position).setY(1.2));
           } else if (player.blockHeld > 0 && player.stamina > 15) {
             player.stamina -= 18;
             player.hurt(3, from);
-            fx.blocked(player.root.position.clone().setY(1.2));
+            fx.blocked(_v2.copy(player.root.position).setY(1.2));
           } else {
             player.hurt(12, from);
             fx.playerHit();
@@ -313,7 +328,7 @@ export class Zombie extends Actor {
     }
 
     this.root.position.addScaledVector(this.vel, dt);
-    this.root.position.add(this._recoil.clone().multiplyScalar(dt * 10));
+    this.root.position.addScaledVector(this._recoil, dt * 10);
     this.clampToArena();
     this.root.rotation.y = this.face + Math.PI;
 

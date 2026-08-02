@@ -42,12 +42,16 @@ export class World {
     scene.add(this.sun.target);
 
     // Cool bounce standing in for sky-dome fill.
-    this.fill = new THREE.HemisphereLight(0x9aa9b8, 0x332c24, 0.38);
+    // Two omnidirectional fill terms (this + scene.environmentIntensity) were
+    // lifting every character's shadow side off the floor of the histogram: our
+    // draugr torso measured luma p5 0.329 against the reference's 0.059.
+    this.fill = new THREE.HemisphereLight(0x9aa9b8, 0x332c24, 0.12);
     scene.add(this.fill);
 
-    // Dedicated back/rim light: ART_BIBLE §3 requires the hero always be
-    // separated from the background by a rim.
-    this.rim = new THREE.DirectionalLight(0xbcd4f0, 2.2);
+    // Rim separation is done per-material with a Fresnel mask in the character
+    // shader, not with a scene light. A DirectionalLight "rim" lights the whole
+    // back hemisphere, which is exactly what flattened the characters.
+    this.rim = new THREE.DirectionalLight(0xbcd4f0, 0.0);
     scene.add(this.rim);
     scene.add(this.rim.target);
 

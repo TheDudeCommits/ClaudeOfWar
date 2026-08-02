@@ -9,6 +9,15 @@ import { OTSCamera } from './camera/ots.js';
 import { setupHeroMaterials, setupZombieMaterials } from './chars/index.js';
 import { createAtmosphere, atmosphereForTOD } from './vfx/atmosphere.js';
 import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
+import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+
+// A BVH over the arena geometry. Without it, the camera's occlusion raycast
+// walks ~500k triangles linearly and dominated the CPU frame: throttling the
+// cast to 1-in-6 frames doubled the frame rate on its own, and this removes
+// the remaining spike on the frames where it does fire.
+THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+THREE.Mesh.prototype.raycast = acceleratedRaycast;
 import { Input, Player, Zombie } from './game/gameplay.js';
 import { CombatFX } from './game/fx.js';
 import { HUD } from './ui/hud.js';
@@ -78,6 +87,7 @@ async function loadArena() {
       o.receiveShadow = true;
       o.frustumCulled = true;
     });
+    g.scene.traverse((o) => { if (o.isMesh) o.geometry.computeBoundsTree(); });
     state.arena.add(g.scene);
   });
   await Promise.all(jobs);
@@ -128,13 +138,15 @@ let paused = false;
 let clearT = 0;
 
 /** Nearest living enemy, biased to whatever is in front of the hero. */
+const _lockF = new THREE.Vector3();
+const _lockTo = new THREE.Vector3();
 function lockTarget() {
   let best = null, bestScore = Infinity;
   const p = state.hero.position;
-  const f = new THREE.Vector3(Math.sin(player.face), 0, Math.cos(player.face));
+  const f = _lockF.set(Math.sin(player.face), 0, Math.cos(player.face));
   for (const e of enemies) {
     if (e.dead) continue;
-    const to = e.root.position.clone().sub(p); to.y = 0;
+    const to = _lockTo.copy(e.root.position).sub(p); to.y = 0;
     const d = to.length();
     if (d > 16) continue;
     // Distance, penalised for being behind the hero.
@@ -165,7 +177,9 @@ function frame() {
       player.update(sdt, input, camera, enemies, fx);
       for (const e of enemies) e.update(sdt, player, fx, enemies);
     }
-    ots.avoid = enemies.filter((e) => !e.dead).map((e) => e.root);
+    // Rebuilt in place; `filter().map()` allocated two arrays every frame.
+    ots.avoid.length = 0;
+    for (const e of enemies) if (!e.dead) ots.avoid.push(e.root);
     const target = lockTarget();
     ots.lockOn = target ? target.root : null;
     hud.update(player, target);
@@ -261,7 +275,7 @@ window.__COW = {
       post.render(1 / 60);
     }
   },
-  state, post, world, camera, scene, renderer, THREE,
+  state, post, world, camera, scene, renderer, THREE, ots,
   setLoopPaused: (v) => { _loopPaused = v; },
   get enemies() { return enemies; },
   get player() { return player; },
