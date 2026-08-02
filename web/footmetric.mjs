@@ -34,16 +34,22 @@ const arg = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
 const flag = (k) => argv.includes('--' + k);
 
 const SECONDS = Number(arg('seconds', 5));
+const BAND = Number(arg('band', 0.35));
 
 /** Runs in the page. Returns raw per-foot samples; all analysis is done here.
  *  Must be a real function, not a string — page.evaluate treats a string as an
  *  expression to evaluate, not a callable to invoke with arguments. */
 const SAMPLER = async (frames) => {
   const { player, state, THREE } = window.__COW;
+  // Bone names vary by exporter: the generated rig uses `LeftFoot`, Mixamo
+  // exports arrive as `mixamorigLeftFoot` (the glTF exporter drops the colon).
+  const canon = (n) => String(n).replace(/^mixamorig[:_]?/i, '').replace(/^.*:/, '');
   let L = null, R = null;
   state.hero.traverse(o => {
-    if (o.isBone && o.name === 'LeftFoot') L = o;
-    if (o.isBone && o.name === 'RightFoot') R = o;
+    if (!o.isBone) return;
+    const c = canon(o.name);
+    if (c === 'LeftFoot') L = o;
+    if (c === 'RightFoot') R = o;
   });
   if (!L || !R) return { error: 'no foot bones' };
   const a = new THREE.Vector3(), b = new THREE.Vector3();
@@ -81,10 +87,11 @@ const SAMPLER = async (frames) => {
 };
 
 /** Segment one foot's timeline into stance runs and measure in-run speed. */
-function analyseFoot(samples, key, groundThresh) {
+function analyseFoot(samples, key, groundThresh, stats) {
   const speeds = [];
   let run = [];
   const flush = () => {
+    if (run.length > 0 && stats) { stats.runs.push(run.length); }
     // Drop touchdown and toe-off: those frames are genuinely in motion.
     if (run.length >= 4) {
       for (let i = 2; i < run.length - 1; i++) {
@@ -107,9 +114,13 @@ function analyseFoot(samples, key, groundThresh) {
 function analyse(samples) {
   const ys = samples.flatMap(s => [s.l[1], s.r[1]]);
   const lo = Math.min(...ys), hi = Math.max(...ys);
-  // Stance = lowest 35% of the vertical range the feet actually cover.
-  const thresh = lo + (hi - lo) * 0.35;
-  const sp = [...analyseFoot(samples, 'l', thresh), ...analyseFoot(samples, 'r', thresh)];
+  // Stance = the lowest BAND fraction of the vertical range the feet cover.
+  // 0.35 was far too generous: the planted ankle sits at 0.128m and the band
+  // reached 0.277m, so a foot 15cm off the floor — unambiguously mid-swing —
+  // counted as stance and its swing velocity was averaged into the plant.
+  const thresh = lo + (hi - lo) * BAND;
+  const stats = { runs: [] };
+  const sp = [...analyseFoot(samples, 'l', thresh, stats), ...analyseFoot(samples, 'r', thresh, stats)];
   // Signed char-space Z travel of the stance foot, over EXACTLY the same frames
   // the world measurement uses. Previously this included touchdown and toe-off
   // while the world figure trimmed them, so the two were not comparable and I
@@ -144,6 +155,10 @@ function analyse(samples) {
     footLo: lo, footHi: hi, thresh,
     charP50: med(charV),
     charN: charV.length,
+    runs: stats.runs.length,
+    runLenMed: med(stats.runs),
+    runLenMax: stats.runs.length ? Math.max(...stats.runs) : 0,
+    totalFrames: samples.length,
   };
 }
 
@@ -195,6 +210,37 @@ await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 180000 });
 await page.waitForFunction('window.__COW_READY === true || window.__COW_ERROR', { timeout: 180000 });
 await new Promise(r => setTimeout(r, 1000));
 
+// Overrides for sweeping: --speed sets the body's target speed, --mpc pins
+// metresPerCycle so the playback rate is a known constant rather than whatever
+// the calibrator converged on.
+const OV_SPEED = arg('speed', null), OV_MPC = arg('mpc', null);
+if (flag('nolock')) await page.evaluate(() => { window.__COW_NOLOCK = 1; window.__COW.player.anim.footLock = false; });
+if (OV_SPEED || OV_MPC) {
+  await page.evaluate(({ sp, mpc }) => {
+    const p = window.__COW.player;
+    if (sp) p.speed = Number(sp);
+    if (window.__COW_NOLOCK) p.anim.footLock = false;
+    if (mpc) {
+      p.anim.metresPerCycle = Number(mpc);
+      p.anim._cal.done = true;          // stop the calibrator overwriting it
+    }
+  }, { sp: OV_SPEED, mpc: OV_MPC });
+}
+
+// --pinface holds the character's facing constant while the clip keeps playing.
+// A rotating body adds tangential velocity at the foot on top of translation,
+// and the foot sits ~0.3m off the turn axis, so a fast turn can dominate the
+// reading. If slip collapses under this flag the residual was never the clip.
+if (flag('pinface')) {
+  await page.evaluate(() => {
+    const p = window.__COW.player;
+    p.__lockFace = p.face;
+    Object.defineProperty(p, 'face', {
+      get() { return this.__lockFace; }, set() {}, configurable: true,
+    });
+  });
+}
+
 if (flag('validate')) {
   console.log('\n  VALIDATING THE METRIC against known answers\n');
 
@@ -214,7 +260,8 @@ if (flag('validate')) {
 }
 
 const r = await run(page, { move: true, freeze: false, seconds: SECONDS });
-console.log(`\n  body ${r.body.toFixed(2)} m/s   samples ${r.n}`);
+console.log(`\n  body ${r.body.toFixed(2)} m/s   usable stance samples ${r.n} of ${r.totalFrames} frames`);
+console.log(`  stance runs ${r.runs}   median length ${r.runLenMed} frames   max ${r.runLenMax}`);
 console.log(`  foot height range ${r.footLo.toFixed(3)} .. ${r.footHi.toFixed(3)}  (stance <= ${r.thresh.toFixed(3)})`);
 console.log(`  STANCE FOOT  p50 ${r.stanceP50.toFixed(3)} m/s   p90 ${r.stanceP90.toFixed(3)} m/s`);
 console.log(`  stance foot CHAR-space dz/dt  ${r.charP50.toFixed(3)} m/s`

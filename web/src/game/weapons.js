@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { asset } from '../core/paths.js';
+import { canonBone } from '../anim/procedural.js';
 
 /**
  * Weapon meshes parented to a character's hand bone.
@@ -75,7 +76,7 @@ export async function equip(characterRoot, key = 'axe') {
 
   let hand = null;
   characterRoot.traverse((o) => {
-    if (!hand && o.isBone && o.name === 'RightHand') hand = o;
+    if (!hand && o.isBone && canonBone(o.name) === 'RightHand') hand = o;
   });
   if (!hand) return null;
 

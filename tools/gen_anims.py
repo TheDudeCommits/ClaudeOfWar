@@ -228,8 +228,13 @@ def main():
         # Calibrated against MEASURED clip output, not against theory: the solver
     # reaches roughly a third of the requested excursion, so the request is
     # scaled to land the measured stance travel near 0.55m and lift near 0.14m.
-    author_locomotion(arm, 'run', 20, stride=leg * 3.40, lift=leg * 0.46,
-                      bob=leg * 0.045, lean=math.radians(7))
+    # The solver achieves roughly a third of the requested excursion (measured
+    # repeatedly: request 0.48m -> 0.153m achieved; request 2.66m -> 0.113m,
+    # i.e. it also saturates well before the leg's geometric limit). What the
+    # gait actually needs is ~0.45m of stance travel at a 3.8 step/sec cadence,
+    # so request ~3x that and stay inside the reachable envelope.
+    author_locomotion(arm, 'run', 24, stride=leg * 1.75, lift=leg * 0.22,
+                      bob=leg * 0.04, lean=math.radians(6))
 
     out = os.path.join(CHARS, 'hero_anims.glb')
     bpy.ops.object.select_all(action='SELECT')

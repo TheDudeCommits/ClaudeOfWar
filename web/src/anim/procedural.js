@@ -13,6 +13,25 @@ import * as THREE from 'three';
  * covers hero and draugr with only tuning differences.
  */
 
+/**
+ * Canonicalise a bone name so one rig class serves several skeletons.
+ *
+ * Mixamo names carry a `mixamorig` prefix, and the glTF exporter strips the
+ * colon, so they arrive as `mixamorigHips` rather than `mixamorig:Hips` —
+ * matching on ':' alone finds nothing. Mixamo also numbers the spine
+ * Spine/Spine1/Spine2 where this project's generated rig uses
+ * Spine/Spine01/Spine02, and capitalises Neck.
+ */
+export function canonBone(name) {
+  let n = String(name);
+  n = n.replace(/^mixamorig[:_]?/i, '');
+  const i = n.lastIndexOf(':');
+  if (i >= 0) n = n.slice(i + 1);
+  if (/^Spine([12])$/.test(n)) n = 'Spine0' + n.slice(5);
+  if (n === 'Neck') n = 'neck';
+  return n;
+}
+
 const BONES = [
   'Hips', 'Spine', 'Spine01', 'Spine02', 'neck', 'Head',
   'LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand',
@@ -40,10 +59,13 @@ export class HumanoidRig {
     this.b = {};
     this.rest = {};
     this.axis = {};      // per-bone pitch/yaw/roll axes, in BONE-LOCAL space
+    const canon = canonBone;
     root.traverse((o) => {
-      if (o.isBone && BONES.includes(o.name) && !this.b[o.name]) {
-        this.b[o.name] = o;
-        this.rest[o.name] = o.quaternion.clone();
+      if (!o.isBone) return;
+      const c = canon(o.name);
+      if (BONES.includes(c) && !this.b[c]) {
+        this.b[c] = o;
+        this.rest[c] = o.quaternion.clone();
       }
     });
     this.ok = !!(this.b.Hips && this.b.LeftUpLeg && this.b.RightUpLeg);

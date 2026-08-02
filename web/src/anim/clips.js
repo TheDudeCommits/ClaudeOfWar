@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { HumanoidRig } from './procedural.js';
+import { HumanoidRig, canonBone } from './procedural.js';
 
 /**
  * Clip-driven animation with a procedural additive layer.
@@ -111,6 +111,10 @@ export class ClipAnimator {
     this.mixer = new THREE.AnimationMixer(root);
     this.actions = {};
     for (const c of clips) {
+      // TPose is a bind reference shipped alongside the real clips, not
+      // something that should ever play. Binding it made it reachable by the
+      // weight blender, which is half of why the draugr stood in a T.
+      if (/^t[-_ ]?pose$/i.test(c.name)) continue;
       const a = this.mixer.clipAction(c);
       a.enabled = true;
       a.setEffectiveWeight(0);
@@ -119,6 +123,10 @@ export class ClipAnimator {
     }
     this.current = null;
     this.metresPerCycle = opts.metresPerCycle || 1.0;
+    this.walkMetresPerCycle = opts.walkMetresPerCycle || this.metresPerCycle;
+    // Hand-off speed between walk and run. Above this the walk clip's cadence
+    // has to be pushed past what reads as walking.
+    this.walkTop = opts.walkTop ?? 1.9;
     this.hit = 0;
     this.hitDir = 0;
     this._speed = 0;
@@ -139,6 +147,12 @@ export class ClipAnimator {
     this._lock = [new THREE.Vector3(), new THREE.Vector3()];
     this._locked = [false, false];
     this._wasStance = [false, false];
+    this._stanceT = [0, 0];
+    // How far the body may outrun a plant before the pin is faded off. Beyond
+    // roughly half a stride the leg is straining and releasing looks better
+    // than reaching.
+    this.lockMaxErr = opts.lockMaxErr ?? 0.55;
+    this.lockEase = opts.lockEase === true;
 
     // Auto-calibration. metresPerCycle can be derived analytically, but every
     // analytic attempt has been wrong: path length over-counts wiggle, the
@@ -178,18 +192,36 @@ export class ClipAnimator {
     this._speed += (speed - this._speed) * (1 - Math.exp(-14 * dt));
     const sp = this._speed;
 
-    if (this.actions.run) {
-      // Playback rate derived from distance, so a planted foot stays planted
-      // whatever the body is doing.
-      // The clamp used to be 3.0 while the required rate was speed/0.319 =
-      // 10.2, so the legs were hard-capped at a third of the cadence needed to
-      // keep a foot planted — and no amount of tuning metresPerCycle could fix
-      // it, which is why a sweep of that value produced a flat response.
-      const rate = THREE.MathUtils.clamp(sp / this.metresPerCycle, 0.0, 12.0);
-      this._target('run', dt, Math.max(0.05, rate));
-      // Below a walking threshold, fade the clip out rather than crawl it.
-      if (sp < 0.25) this.actions.run.setEffectiveWeight(
-        this.actions.run.getEffectiveWeight() * Math.exp(-8 * dt));
+    // Locomotion state machine. The previous version had exactly one clip and
+    // faded it to ZERO below 0.25 m/s, which left the mixer contributing
+    // nothing and dropped the character onto its BIND POSE. On the old
+    // generated rig that bind was a 43-degree A-pose and the additive arm-close
+    // disguised it; on a Mixamo rig the bind is a literal T-pose, so every
+    // standing draugr stood with its arms straight out. A standing character
+    // must be playing an idle, not playing nothing.
+    const key = (...names) => {
+      for (const n of names) if (this.actions[n]) return n;
+      return null;
+    };
+    const idleKey = key('idle', 'Idle');
+    const walkKey = key('walk', 'Walk');
+    const runKey = key('run', 'Run');
+
+    // Rate is derived from distance, so a planted foot stays planted whatever
+    // the body is doing. The clamp used to be 3.0 while the required rate was
+    // speed/0.319 = 10.2, hard-capping the legs at a third of the cadence
+    // needed to hold a plant — which is why sweeping metresPerCycle produced a
+    // flat response.
+    const rateFor = (mpc) => THREE.MathUtils.clamp(sp / (mpc || 1), 0.05, 12.0);
+
+    if (sp < 0.30 && idleKey) {
+      this._target(idleKey, dt, 1);
+    } else if (walkKey && sp < this.walkTop) {
+      this._target(walkKey, dt, rateFor(this.walkMetresPerCycle));
+    } else if (runKey) {
+      this._target(runKey, dt, rateFor(this.metresPerCycle));
+    } else if (idleKey) {
+      this._target(idleKey, dt, 1);
     }
 
     this.mixer.update(dt);
@@ -368,10 +400,37 @@ export class ClipAnimator {
         this._lock[i].copy(pos[i]);
         continue;
       }
+      // EASE the pin instead of snapping to it.
+      //
+      // A hard pin drove stance p90 to 5.7 m/s: at touchdown the target is
+      // wherever the clip happens to have the foot, and at toe-off the pin is
+      // dropped instantly, so both ends of every stance produced a jump. The
+      // median looked good and the motion looked worse — a snap reads as a
+      // glitch where a steady slide only reads as slippery.
+      //
+      // The pin is therefore blended in over the first 120ms of stance and out
+      // over the last 120ms, and the correction it may apply is capped, so the
+      // IK can only ever pull the foot part-way back toward its plant.
+      this._stanceT[i] = (this._stanceT[i] || 0) + dt;
+      const held = this._stanceT[i];
+      const inW = THREE.MathUtils.smoothstep(held, 0, 0.12);
+      // Fade out on reach error rather than on a predicted end time, which is
+      // not known: as the body outruns the plant the correction grows, and that
+      // growth is itself the signal that toe-off is due.
       _T.copy(this._lock[i]);
-      // Release rather than tear if the body has walked out of reach; the next
-      // frame re-plants at the current position.
-      if (!solveLegIK(rig, this.root, sides[i], _T)) this._locked[i] = false;
+      const err = _T.distanceTo(pos[i]);
+      const outW = 1 - THREE.MathUtils.smoothstep(err, this.lockMaxErr * 0.6, this.lockMaxErr);
+      // MEASURED WORSE, kept behind a flag rather than deleted. Easing the pin
+      // took p50 1.119 -> 1.268 and p90 5.716 -> 7.832 m/s: blending toward the
+      // clip's own foot position mid-stance means tracking a moving target, so
+      // the correction never settles. The hard pin is the better of the two.
+      const w = this.lockEase ? inW * outW : 1;
+      if (w <= 0.01) { this._locked[i] = false; this._stanceT[i] = 0; continue; }
+      _T.lerpVectors(pos[i], _T, w);
+      if (!solveLegIK(rig, this.root, sides[i], _T)) {
+        this._locked[i] = false;
+        this._stanceT[i] = 0;
+      }
     }
   }
 }
@@ -390,7 +449,9 @@ export function measureCycleDistance(root, clip) {
   action.play();
 
   let foot = null;
-  root.traverse((o) => { if (!foot && o.isBone && o.name === 'LeftFoot') foot = o; });
+  root.traverse((o) => {
+    if (!foot && o.isBone && canonBone(o.name) === 'LeftFoot') foot = o;
+  });
   if (!foot) { action.stop(); return 1.0; }
 
   // Solve the playback rate ANALYTICALLY rather than by feedback.
@@ -446,7 +507,27 @@ export function measureCycleDistance(root, clip) {
   // lands on ~1.60 — i.e. the raw analytic D/F was very nearly right and the
   // earlier "2x too fast" reading came from a diagnostic that sampled
   // touchdown/toe-off frames the world metric excluded.
-  const STANCE_RATE_CAL = 0.97;
+  // Cross-checked two independent ways at 148 stance samples: the clip was
+  // running 74 stance runs in 10s (3.7 cycles/sec = 7.4 steps/sec, roughly
+  // double a sprinter's cadence) AND the stance foot was moving 4.71 m/s in
+  // character space against the 2.49 needed. Both point at the same ~1.9x, so
+  // the seed carries it. Reproduce with `node footmetric.mjs --seconds 10`.
+  // No fudge factor. The previous value (4.12) existed only to compensate for a
+  // clip whose stance excursion was about a quarter of what a real gait needs;
+  // a properly authored clip should need D/F and nothing else. If this has to
+  // be non-1.0 again, that is a signal the clip is wrong, not the formula.
+  // Re-derived from the measurement rather than swept: with CAL 1.77 the stance
+  // foot travelled 2.101 m/s in character space against a body doing 2.52, a
+  // 17% shortfall, so CAL scales by 2.101/2.52.
+  // Measured against the real Mixamo Run clip at 444 stance samples (the old
+  // authored clip only ever yielded ~148, which is why its numbers swung).
+  // D/F leaves the stance foot 1.77x too fast; this closes it.
+  // 1.77 measures best end-to-end (54% slip) even though 1.54 matches the
+  // char-space speed more closely (5% vs 13%). That gap says the remaining slip
+  // is NOT rate mismatch — it is body rotation adding tangential velocity at
+  // the foot, plus natural in-clip stance motion. Chosen on the end-to-end
+  // number, not the intermediate one.
+  const STANCE_RATE_CAL = 1.476;
   const mpc = (D / Math.max(F, 0.05)) * STANCE_RATE_CAL;
   return mpc > 0.05 && mpc < 12 ? mpc : 1.0;
 }

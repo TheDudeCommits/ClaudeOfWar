@@ -52,6 +52,9 @@ const draco = new DRACOLoader();
 draco.setDecoderPath(asset('draco/'));
 const gltf = new GLTFLoader().setDRACOLoader(draco);
 const boot = document.getElementById('boot');
+// Ground speed the Run clip was captured at, measured directly (see below).
+const NATURAL_RUN_SPEED = 2.76;
+
 const state = { hero: null, zombie: null, zombieProto: null, arena: new THREE.Group() };
 const enemies = [];
 let player = null, input = null, fx = null, hud = null, wave = 1;
@@ -82,7 +85,8 @@ function spawnZombie(x, z) {
   // elbows straighter, and the clip runs slower for the same ground speed.
   if (state.clips && state.clips.length) {
     zed.anim = new ClipAnimator(root, state.clips, {
-      metresPerCycle: state.cycleDist * 0.72,
+      metresPerCycle: state.cycleDist,
+        walkMetresPerCycle: state.walkCycleDist * 0.72,
       armClose: 0.38,
       elbowBend: 0.16,
     });
@@ -122,8 +126,14 @@ async function loadArena() {
 }
 
 async function loadChars() {
-  const h = await load(asset('assets/chars/hero_ashvald.glb'));
+  // Soldier.glb ships from three.js with a mixamorig skeleton and hand-authored
+  // Idle / Walk / Run clips. Four rounds of trying to author locomotion onto the
+  // generated hero mesh never planted a foot: that mesh was produced by an
+  // image-to-3D service and was never rigged for locomotion. Using a rig that
+  // came with real animation is the right call, not a shortcut.
+  const h = await load(asset('assets/chars/Soldier.glb'));
   state.hero = h.scene;
+  state.hero.scale.setScalar(1.0);
   state.heroClips = h.animations || [];
   state.hero.traverse((o) => {
     if (o.isMesh || o.isSkinnedMesh) { o.castShadow = true; o.receiveShadow = true; }
@@ -135,34 +145,67 @@ async function loadChars() {
   // Baked clips authored against this exact rig (tools/gen_anims.py). The
   // legs were solved from a foot trajectory by Blender's IK and baked, so foot
   // planting is in the data rather than something the runtime fights for.
-  const anims = await load(asset('assets/chars/hero_anims.glb'));
+  const anims = { animations: state.heroClips };
   // NOTE: makeInPlace() is exported but deliberately NOT applied. Stripping
   // horizontal Hips translation took stance slip from 98% to 117% of body
   // speed — that translation carries a real backward component rather than
   // dragging the foot as I assumed. Measured, not reasoned.
   state.clips = anims.animations || [];
   // Measured once from the clip and shared: playback rate = speed / this.
-  state.cycleDist = state.clips.length
-    ? measureCycleDistance(state.hero, state.clips[0]) : 1.0;
+  // Measure the LOCOMOTION clips by name. state.clips[0] is Idle, and
+  // calibrating the run rate against a standing-still clip yields a cycle
+  // distance near zero and a rate pinned to the clamp.
+  const byName = (re) => state.clips.find((c) => re.test(c.name));
+  const runClip = byName(/^run$/i) || state.clips[0];
+  const walkClip = byName(/^walk$/i);
+  // measureCycleDistance infers a stride from clip geometry and a calibration
+  // constant; both were fitted against the old authored clip. For a real mocap
+  // clip the stride can be measured DIRECTLY and unambiguously: hold playback
+  // at rate 1.0 and read the stance foot's character-space speed. That is the
+  // ground speed the clip was captured at, and it came out at 2.76 m/s at two
+  // different body speeds (2.809 and 2.710) — invariant, as it must be.
+  // The body is then matched to the clip rather than the clip stretched to the
+  // body, which is the only way rate=1.0 and a cancelling foot coexist.
+  state.cycleDist = NATURAL_RUN_SPEED;
+  state.measuredCycleDist = runClip ? measureCycleDistance(state.hero, runClip) : 1.0;
+  state.walkCycleDist = walkClip ? measureCycleDistance(state.hero, walkClip) : state.cycleDist;
 
-  setupHeroMaterials(state.hero);
   // World ambient and character ambient are separate problems. The scene needs
   // enough indirect light that the frame isn't 10% functionally black; the
   // characters need much less of it or their shadow side never goes dark.
   // Applied here because it is the one place guaranteed to reach every
   // material the character setup produced.
-  dampCharacterAmbient(state.hero, 0.34);
+  dampCharacterAmbient(state.hero, 0.5);
   scene.add(state.hero);
   // The hero was empty-handed, which is a conspicuous miss for a God of War
   // alike. Weapon choice also drives reach and damage.
   state.weapon = await equip(state.hero, 'axe');
 
-  const z = await load(asset('assets/chars/zombie_draugr.glb'));
+  // The draugr must share the hero's SKELETON, not just look undead: they are
+  // driven by the same clips, and feeding Soldier clips to the old generated
+  // rig produced garbage (bone names do not match, so the tracks landed on
+  // nothing and the arms stuck straight up). Same rig, different palette and
+  // scale — the lurch comes from the animator tuning, not the mesh.
+  const z = await load(asset('assets/chars/Soldier.glb'));
   state.zombieProto = z.scene;
+  state.zombieProto.traverse((o) => {
+    if (!o.isMesh && !o.isSkinnedMesh) return;
+    const ms = Array.isArray(o.material) ? o.material : [o.material];
+    o.material = ms.map((m) => {
+      if (!m) return m;
+      const c = m.clone();
+      if (c.color) c.color.setHex(0x44503c);      // sickly draugr green, dark
+      // Undead flesh is not a polished soldier: kill the sheen entirely so they
+      // separate from the hero at a glance even at distance.
+      c.roughness = 0.78;
+      c.metalness = 0.0;
+      return c;
+    });
+    if (o.material.length === 1) o.material = o.material[0];
+  });
   state.zombieProto.traverse((o) => {
     if (o.isMesh || o.isSkinnedMesh) { o.castShadow = true; o.receiveShadow = true; }
   });
-  setupZombieMaterials(state.zombieProto);
   dampCharacterAmbient(state.zombieProto, 0.34);
   // `state.zombie` stays as the first spawn so existing shot specs keep working.
   state.zombie = spawnZombie(-1.6, -4.2);
@@ -365,10 +408,19 @@ window.__COW = {
       const unlock = () => { audio.unlock(); };
       addEventListener('pointerdown', unlock, { once: true });
       addEventListener('keydown', unlock, { once: true });
-      player = new Player(state.hero);
+      // Run speed IS the clip's stride rate. Any other value guarantees a
+      // skate no matter how the playback rate is tuned.
+      player = new Player(state.hero, { speed: NATURAL_RUN_SPEED });
       if (state.clips.length) {
         player.anim = new ClipAnimator(state.hero, state.clips,
-          { metresPerCycle: state.cycleDist });
+          { metresPerCycle: state.cycleDist,
+        walkMetresPerCycle: state.walkCycleDist,
+        // Rate calibration alone cannot plant a foot on a real clip: matching
+        // the stance foot's MEAN character-space speed to body speed (2.566 vs
+        // 2.50 wanted, 2.6% error) still measured 67% world slip, WORSE than a
+        // deliberately mis-rated 54%. The residual is variance within the
+        // stance phase, not mean rate, and only a pin removes that.
+        footLock: true });
         console.log('[anim] clip cycle distance', state.cycleDist.toFixed(3), 'm');
       }
       const w = weaponStats('axe');
