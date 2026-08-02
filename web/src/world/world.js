@@ -42,7 +42,7 @@ export class World {
     scene.add(this.sun.target);
 
     // Cool bounce standing in for sky-dome fill.
-    this.fill = new THREE.HemisphereLight(0x8fa4b8, 0x2b2620, 0.28);
+    this.fill = new THREE.HemisphereLight(0x9aa9b8, 0x332c24, 0.38);
     scene.add(this.fill);
 
     // Dedicated back/rim light: ART_BIBLE §3 requires the hero always be

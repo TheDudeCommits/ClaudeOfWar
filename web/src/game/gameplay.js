@@ -1,14 +1,13 @@
 import * as THREE from 'three';
+import { Animator, HERO_ANIM, ZOMBIE_ANIM } from '../anim/procedural.js';
 
 /**
  * Player control, melee combat and enemy AI.
  *
- * The character GLBs ship with a single animation clip each, so there is no
- * attack/hit/death animation to play. Rather than leave combat unanimated, the
- * motion here is procedural: attacks are a lunge plus a torso twist driven on
- * the root, hits are an additive recoil, and deaths are a weighted topple. With
- * hitstop and a camera punch layered on, that reads as impact far better than a
- * static pose would — ART_BIBLE §11 is mostly about timing, not keyframes.
+ * The character GLBs ship with a single (A-pose) clip each, so there is no
+ * locomotion, attack, hit or death animation to play. `anim/procedural.js`
+ * drives the humanoid rig directly instead; this file owns state and timing and
+ * hands that animator a speed, an attack phase and a death progress.
  */
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -49,7 +48,7 @@ export class Input {
 
 /* ------------------------------- actors ------------------------------ */
 
-class Actor {
+export class Actor {
   constructor(root, opts = {}) {
     this.root = root;
     this.hp = opts.hp ?? 100;
@@ -69,6 +68,11 @@ class Actor {
     if (this.dead) return false;
     this.hp -= amount;
     this._flash = 1;
+    if (this.anim) {
+      const local = new THREE.Vector3().copy(fromDir).setY(0).normalize()
+        .applyAxisAngle(UP, -this.root.rotation.y);
+      this.anim.onHit(THREE.MathUtils.clamp(local.x, -1, 1));
+    }
     // Directional additive recoil rather than a canned reaction clip.
     this._recoil.copy(fromDir).setY(0).normalize().multiplyScalar(0.22);
     if (this.hp <= 0) { this.dead = true; this._deathT = 0; }
@@ -83,8 +87,7 @@ class Actor {
       const t = this._deathT;
       // Topple with a bit of overshoot so it settles rather than snapping flat.
       const fall = 1 - Math.pow(1 - t, 3);
-      this.root.rotation.x = -fall * Math.PI * 0.48;
-      this.root.position.y = this._baseY - fall * 0.15;
+      this.root.position.y = this._baseY - fall * 0.06;
     }
   }
 
@@ -106,7 +109,11 @@ export class Player extends Actor {
     this.iframes = 0;
     this.stamina = 100;
     this.rage = 0;
+    this.parryWindow = 0;      // ART_BIBLE §11: 120 ms
+    this.blockHeld = 0;
+    this.sinceAttack = 99;
     this.hitbox = { active: false, reach: 2.3, arc: 1.5, damage: 34 };
+    this.anim = new Animator(root, HERO_ANIM);
   }
 
   update(dt, input, camera, enemies, fx) {
@@ -114,6 +121,16 @@ export class Player extends Actor {
     if (this.dead) return;
     this.t += dt;
     this.iframes = Math.max(0, this.iframes - dt);
+    this.parryWindow = Math.max(0, this.parryWindow - dt);
+    this.sinceAttack += dt;
+    // A guard raised this frame opens a 120 ms parry; holding it past that is
+    // an ordinary block.
+    if (input.block) {
+      if (this.blockHeld === 0) this.parryWindow = 0.12;
+      this.blockHeld += dt;
+    } else this.blockHeld = 0;
+    // Combo must lapse, or attacking once and waiting still lands the heavy.
+    if (this.sinceAttack > 0.7) this.combo = -1;
     this.stamina = Math.min(100, this.stamina + dt * 26);
     this.hitbox.active = false;
 
@@ -147,6 +164,7 @@ export class Player extends Actor {
       } else if (input.consumeAttack() && this.stamina > 12) {
         this.state = 'attack'; this.t = 0; this.stamina -= 12;
         this.combo = (this.combo + 1) % 3;
+        this.sinceAttack = 0;
         this._swung = false;
       }
     }
@@ -179,14 +197,13 @@ export class Player extends Actor {
     this.clampToArena();
     this.root.rotation.y = this.face + Math.PI;
 
-    // Attack pose: lean into the swing. Purely procedural, on the root.
-    let lean = 0;
-    if (this.state === 'attack') {
-      const dur = this.combo === 2 ? 0.62 : 0.44;
-      const k = this.t / dur;
-      lean = k < 0.3 ? -k * 0.5 : Math.sin((k - 0.3) / 0.7 * Math.PI) * 0.42;
-    }
-    this.root.rotation.x = lean;
+    // Body motion is skeletal now; the root only carries yaw.
+    const dur = this.combo === 2 ? 0.62 : 0.44;
+    this.anim?.update(dt, this.vel.length(),
+      this.state === 'attack'
+        ? { active: true, k: Math.min(1, this.t / dur), combo: this.combo }
+        : null,
+      this.dead ? this._deathT : 0);
   }
 
   swing(enemies, fx) {
@@ -219,7 +236,15 @@ export class Zombie extends Actor {
     this.stagger = 0;
     this.attackCd = 1.2 + Math.random();
     this.state = 'idle';
+    this.telegraph = 0;
     this._t = Math.random() * 10;
+    // Silhouette variety: a pack of identical models at identical scale merges
+    // into one mass at combat distance. ART_BIBLE §9.
+    const v = 0.88 + Math.random() * 0.26;
+    root.scale.setScalar(v);
+    this.speed *= 1.10 - (v - 0.88) * 0.6;   // bigger = slower
+    this.maxHp = this.hp = 100 * v;
+    this.anim = new Animator(root, ZOMBIE_ANIM);
   }
 
   update(dt, player, fx, others) {
@@ -227,6 +252,7 @@ export class Zombie extends Actor {
     if (this.dead) return;
     this._t += dt;
     this.stagger = Math.max(0, this.stagger - dt);
+    this.telegraph = Math.max(0, this.telegraph - dt * 2.4);
     this.attackCd -= dt;
 
     const to = player.root.position.clone().sub(this.root.position); to.y = 0;
@@ -243,7 +269,7 @@ export class Zombie extends Actor {
         if (o === this || o.dead) continue;
         const off = this.root.position.clone().sub(o.root.position); off.y = 0;
         const l = off.length();
-        if (l < 1.1 && l > 1e-3) sep.add(off.multiplyScalar((1.1 - l) / l));
+        if (l < 1.9 && l > 1e-3) sep.add(off.multiplyScalar((1.9 - l) / l));
       }
       d.addScaledVector(sep, 0.8).normalize();
       // Shambling gait: speed pulses rather than holding constant.
@@ -255,7 +281,8 @@ export class Zombie extends Actor {
       if (this.attackCd <= 0) {
         this.attackCd = 1.6 + Math.random() * 1.2;
         this.state = 'attack';
-        this._swingAt = 0.34;
+        this._swingAt = 0.42;
+        this.telegraph = 1;          // drives a readable wind-up + rim flash
       }
     }
 
@@ -264,8 +291,21 @@ export class Zombie extends Actor {
       if (this._swingAt !== undefined && this._swingAt <= 0 && this._swingAt > -0.05) {
         const d2 = player.root.position.distanceTo(this.root.position);
         if (d2 < 2.0 && player.iframes <= 0 && !player.dead) {
-          player.hurt(12, this.root.position.clone().sub(player.root.position));
-          fx.playerHit();
+          const from = this.root.position.clone().sub(player.root.position);
+          if (player.parryWindow > 0) {
+            // Parry: no damage, the attacker is staggered and pushed back.
+            this.stagger = 0.9;
+            this.hurt(0, from.clone().negate());
+            player.rage = Math.min(100, player.rage + 18);
+            fx.parry(this.root.position.clone().setY(1.2));
+          } else if (player.blockHeld > 0 && player.stamina > 15) {
+            player.stamina -= 18;
+            player.hurt(3, from);
+            fx.blocked(player.root.position.clone().setY(1.2));
+          } else {
+            player.hurt(12, from);
+            fx.playerHit();
+          }
         }
         this._swingAt = -1;
       }
@@ -277,12 +317,12 @@ export class Zombie extends Actor {
     this.clampToArena();
     this.root.rotation.y = this.face + Math.PI;
 
-    // Lurch on the walk cycle; a rigid translate reads as a sliding prop.
-    if (!this.dead) {
-      const bob = this.state === 'walk' ? Math.sin(this._t * 6.2) * 0.035 : 0;
-      this.root.position.y = this._baseY + Math.abs(bob);
-      this.root.rotation.z = this.state === 'walk' ? Math.sin(this._t * 3.1) * 0.06 : 0;
-      this.root.rotation.x = this.state === 'attack' ? -0.25 : 0;
-    }
+    // Telegraph: a readable wind-up the animator plays, not a 14-degree root
+    // lean on a grey figure the player cannot see at 8 m.
+    this.anim?.update(dt, this.vel.length(),
+      this.state === 'attack'
+        ? { active: true, k: Math.max(0, 1 - Math.max(0, this._swingAt) / 0.42), combo: 0 }
+        : null,
+      this.dead ? this._deathT : 0);
   }
 }

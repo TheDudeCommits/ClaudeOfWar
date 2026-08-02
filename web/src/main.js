@@ -21,7 +21,7 @@ document.body.appendChild(canvas);
 
 const renderer = createRenderer(canvas);
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(56, innerWidth / innerHeight, 0.05, 800);
+const camera = new THREE.PerspectiveCamera(56, innerWidth / innerHeight, 0.05, 30000);
 camera.position.set(2.1, 1.62, 3.4);
 
 const world = new World(scene, renderer);
@@ -139,9 +139,18 @@ function lockTarget() {
   return best;
 }
 
+let _loopPaused = false;
+export function setLoopPaused(v) { _loopPaused = v; }
+
 function frame() {
   requestAnimationFrame(frame);
-  const dt = Math.min(clock.getDelta(), 0.05);
+  // perf.mjs drives post.render() itself; without this the page's own loop
+  // renders a second full post chain per tick and doubles the measured cost.
+  if (_loopPaused) return;
+  // Clamping raw dt made the whole sim run in slow motion below 20 FPS.
+  // Clamp the *render* dt but step the sim in fixed slices so combat timing
+  // stays real when frames are long.
+  const dt = Math.min(clock.getDelta(), 0.10);
 
   if (!paused && player) {
     // fx.update returns the hitstop-scaled dt: the sim slows, the camera and
@@ -247,6 +256,9 @@ window.__COW = {
     }
   },
   state, post, world, camera, scene, renderer, THREE,
+  setLoopPaused: (v) => { _loopPaused = v; },
+  get enemies() { return enemies; },
+  get player() { return player; },
 };
 
 (async function init() {

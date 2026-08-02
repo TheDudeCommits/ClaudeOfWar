@@ -21,6 +21,7 @@ const arg = (k, d) => {
   return i >= 0 ? argv[i + 1] : d;
 };
 const flag = (k) => argv.includes('--' + k);
+const Q = arg('q', null);   // quality preset passthrough
 
 const W = 1920, H = 1080;
 
@@ -54,7 +55,7 @@ async function main() {
     page.on('console', m => logs.push(`[${m.type()}] ${m.text()}`));
     page.on('pageerror', e => logs.push('PAGEERROR ' + e.message));
     try {
-      await page.goto(`${BASE}/?shot=${encodeURIComponent(shot)}`,
+      await page.goto(`${BASE}/?shot=${encodeURIComponent(shot)}${Q ? '&q=' + Q : ''}`,
         { waitUntil: 'networkidle2', timeout: 120000 });
       await page.waitForFunction('window.__COW_READY === true || window.__COW_ERROR',
         { timeout: 180000 });

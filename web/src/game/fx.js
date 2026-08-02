@@ -20,7 +20,7 @@ export class CombatFX {
     // A small pool, because allocating a PointLight mid-combat causes a shader
     // recompile stall on first use.
     for (let i = 0; i < 4; i++) {
-      const l = new THREE.PointLight(0xffd0a0, 0, 5.5, 2);
+      const l = new THREE.PointLight(0xffd0a0, 0, 2.6, 2);
       l.visible = false;
       scene.add(l);
       this._lights.push({ light: l, t: 0 });
@@ -59,7 +59,7 @@ export class CombatFX {
     this.hitstop = Math.max(this.hitstop, 0.06 + 0.05 * power);
     const slot = this._lights.find(l => l.t <= 0) || this._lights[0];
     slot.light.position.copy(pos);
-    slot.light.intensity = 14 * power;
+    slot.light.intensity = 5.5 * power;
     slot.light.visible = true;
     slot.t = 0.09;
     this.ots?.impact(0.42 * power + 0.12, -5.5 * power);
@@ -74,7 +74,25 @@ export class CombatFX {
     this._trailT = combo === 2 ? 0.16 : 0.11;
   }
 
-  whiff() { this.ots?.impact(0.05, -1.0); }
+  whiff() { /* a miss must not shake the camera */ }
+
+  parry(pos) {
+    this.hitstop = Math.max(this.hitstop, 0.11);
+    const slot = this._lights.find(l => l.t <= 0) || this._lights[0];
+    slot.light.position.copy(pos);
+    slot.light.color.setHex(0xbfe4ff);
+    slot.light.intensity = 9;
+    slot.light.visible = true;
+    slot.t = 0.13;
+    this.ots?.impact(0.5, -6);
+    this._emitSparks(pos, 34, 1.2);
+  }
+
+  blocked(pos) {
+    this.hitstop = Math.max(this.hitstop, 0.05);
+    this.ots?.impact(0.3, -3);
+    this._emitSparks(pos, 12, 0.6);
+  }
 
   playerHit() {
     this.hitstop = Math.max(this.hitstop, 0.07);
@@ -100,14 +118,18 @@ export class CombatFX {
 
   /** Returns the scaled dt the rest of the sim should use. */
   update(dt) {
+    // Actors freeze; sparks, impact lights and the weapon trail do NOT. Stepping
+    // the FX with the scaled dt froze the whole frame, which is the opposite of
+    // what hitstop is for.
+    const raw = dt;
     if (this.hitstop > 0) {
-      this.hitstop -= dt;
+      this.hitstop -= raw;
       dt *= 0.06;    // near-freeze, not a full stop — a full stop reads as a hitch
     }
     for (const s of this._lights) {
       if (s.t > 0) {
-        s.t -= dt;
-        s.light.intensity *= Math.exp(-26 * dt);
+        s.t -= raw;
+        s.light.intensity *= Math.exp(-26 * raw);
         if (s.t <= 0) { s.light.visible = false; s.light.intensity = 0; }
       }
     }
@@ -118,19 +140,19 @@ export class CombatFX {
     for (let i = 0; i < this._sparkN; i++) {
       if (l[i] <= 0) continue;
       any = true;
-      l[i] -= dt;
-      v[i * 3 + 1] -= 15 * dt;                 // gravity
-      const drag = Math.exp(-3.2 * dt);
+      l[i] -= raw;
+      v[i * 3 + 1] -= 15 * raw;                // gravity
+      const drag = Math.exp(-3.2 * raw);
       v[i * 3] *= drag; v[i * 3 + 1] *= drag; v[i * 3 + 2] *= drag;
-      p[i * 3] += v[i * 3] * dt;
-      p[i * 3 + 1] += v[i * 3 + 1] * dt;
-      p[i * 3 + 2] += v[i * 3 + 2] * dt;
+      p[i * 3] += v[i * 3] * raw;
+      p[i * 3 + 1] += v[i * 3 + 1] * raw;
+      p[i * 3 + 2] += v[i * 3 + 2] * raw;
       if (l[i] <= 0) { p[i * 3 + 1] = -999; }
     }
     if (any) this._sparkGeo.attributes.position.needsUpdate = true;
 
     if (this._trailT > 0) {
-      this._trailT -= dt;
+      this._trailT -= raw;
       this._trailMat.opacity = Math.max(0, this._trailT * 5.5);
       if (this._trailT <= 0) this._trail.visible = false;
     }

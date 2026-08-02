@@ -20,6 +20,7 @@ const W = Number(arg('w', 1920)), H = Number(arg('h', 1080));
 const FRAMES = Number(arg('frames', 300));
 const SHOT = arg('shot', 'arena_ots');
 const SCALE = arg('scale', null);
+const Q = arg('q', null);
 
 const browser = await puppeteer.launch({
   headless: false,
@@ -28,7 +29,7 @@ const browser = await puppeteer.launch({
   defaultViewport: { width: W, height: H, deviceScaleFactor: 1 },
 });
 const page = await browser.newPage();
-await page.goto(`${BASE}/?shot=${SHOT}&perf=1${SCALE ? '&scale=' + SCALE : ''}`, { waitUntil: 'networkidle2', timeout: 120000 });
+await page.goto(`${BASE}/?shot=${SHOT}&perf=1${SCALE ? '&scale=' + SCALE : ''}${Q ? '&q=' + Q : ''}`, { waitUntil: 'networkidle2', timeout: 120000 });
 await page.waitForFunction('window.__COW_READY===true || window.__COW_ERROR', { timeout: 180000 });
 
 const err = await page.evaluate('window.__COW_ERROR || null');
@@ -36,6 +37,7 @@ if (err) { console.error('page error:', String(err).slice(0, 300)); await browse
 
 const res = await page.evaluate(async (frames) => {
   const { post, renderer } = window.__COW;
+  window.__COW.setLoopPaused?.(true);   // stop the page rendering a 2nd chain
   // Warm up: shader compiles and texture uploads on the first frames would
   // otherwise dominate the percentiles.
   for (let i = 0; i < 60; i++) {
@@ -49,6 +51,7 @@ const res = await page.evaluate(async (frames) => {
     await new Promise(r => requestAnimationFrame(r));
     t.push(performance.now() - a);
   }
+  window.__COW.setLoopPaused?.(false);
   t.sort((x, y) => x - y);
   const p = q => t[Math.min(t.length - 1, Math.floor(t.length * q))];
   // This machine is a fanless Air. Sustained GPU benchmarking throttles it, so

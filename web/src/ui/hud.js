@@ -59,13 +59,15 @@ const CSS = `
 export const QUALITY_MODES = {
   medium: {
     name: 'Performance',
-    desc: 'Targets a steady 30+ FPS. Renders at 80% and upscales. '
-        + 'Recommended on a fanless MacBook Air, which throttles under sustained load.',
+    desc: 'Renders at 80% and upscales, half-resolution ambient occlusion. '
+        + 'Holds 30+ FPS on a cold MacBook Air M2; expect it to dip under '
+        + 'sustained load, since the machine is fanless and throttles.',
   },
   high: {
     name: 'Fidelity',
-    desc: 'Full native resolution, larger bloom kernel and full-resolution '
-        + 'ambient occlusion. Prioritises image quality over frame rate.',
+    desc: 'Native resolution, full-resolution ambient occlusion, wider bloom '
+        + 'and a larger depth-of-field kernel. Measurably sharper — and '
+        + 'measurably below 30 FPS on an M2 Air. Prioritises image quality.',
   },
 };
 

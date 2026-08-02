@@ -41,9 +41,12 @@ export class OTSCamera {
   }
 
   /** Landed hit. amount 0..1. */
+  /** `fovDip` is the punch in degrees and is used as given — callers already
+   *  scale it by hit power, and multiplying by `amount` again here halved every
+   *  punch to ~1.3 deg against the 3-6 deg the art bible asks for. */
   impact(amount, fovDip = -4.5) {
     this._trauma = THREE.MathUtils.clamp(this._trauma + amount, 0, 1);
-    this._fovPunch = Math.min(this._fovPunch, fovDip * amount);
+    this._fovPunch = Math.min(this._fovPunch, fovDip);
   }
 
   update(dt) {
@@ -104,7 +107,8 @@ export class OTSCamera {
     cam.rotation.z += THREE.MathUtils.degToRad(
       s > 1e-4 ? Math.sin(t * 1.13) * this.maxShakeRot * s : 0);
 
-    this._fovPunch += (0 - this._fovPunch) * (1 - Math.exp(-9 * dt));
+    // tau ~45ms: a 9/s decay left a visible 400ms+ tail on every hit.
+    this._fovPunch += (0 - this._fovPunch) * (1 - Math.exp(-22 * dt));
     cam.fov = this.fovBase + this._fovPunch;
     cam.updateProjectionMatrix();
   }

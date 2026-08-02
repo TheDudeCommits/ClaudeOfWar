@@ -26,11 +26,13 @@ export const PRESETS = {
   // target cost 4.5x the frame time (56 fps -> 12 fps) for edge quality that
   // bloom, grain and the sub-native upscale largely hide anyway. Resolution
   // scale is the dial instead.
-  high:   { scale: 1.00, msaa: 0, ao: true,  dofScale: 0.5,
+  // 4096 shadows measured ~20ms/frame here for no visible gain at this
+  // frustum size, so Fidelity spends its budget on resolution and AO instead.
+  high:   { scale: 1.00, msaa: 0, ao: true,  aoHalfRes: false, dofScale: 0.75,
+            bloomKernel: KernelSize.HUGE,   shadow: 2048 },
+  medium: { scale: 0.80, msaa: 0, ao: true,  aoHalfRes: true,  dofScale: 0.5,
             bloomKernel: KernelSize.LARGE,  shadow: 2048 },
-  medium: { scale: 0.80, msaa: 0, ao: true,  dofScale: 0.5,
-            bloomKernel: KernelSize.LARGE,  shadow: 2048 },
-  low:    { scale: 0.60, msaa: 0, ao: false, dofScale: 0.35,
+  low:    { scale: 0.60, msaa: 0, ao: false, aoHalfRes: true, dofScale: 0.35,
             bloomKernel: KernelSize.MEDIUM, shadow: 1024 },
 };
 
@@ -100,7 +102,7 @@ export class Post {
     this.ao.configuration.color = new THREE.Color(0x0a1220);
     // Half-res AO with a cheaper denoise: 30ms -> ~8ms. AO is low-frequency
     // by nature, so the resolution loss is invisible next to the frame cost.
-    this.ao.configuration.halfRes = true;
+    this.ao.configuration.halfRes = QUALITY.aoHalfRes;
     this.ao.enabled = QUALITY.ao;
     this.ao.configuration.denoiseSamples = 4;
     this.ao.configuration.denoiseRadius = 6;
@@ -116,17 +118,17 @@ export class Post {
       radius: 0.72,
     });
 
-    this.exposure = new ExposureEffect(0.55);
+    // Solved against the measured frame: 0.55 left luma p50 at 0.15 (ref 0.397)
+    // with 19.8% of pixels functionally black (ref 0.13%).
+    this.exposure = new ExposureEffect(1.10);
 
     // Focus sits on the combat plane; the hero shoulder blurs slightly near and
     // the background falls off hard. ART_BIBLE §6.
     // focusRange is normalised depth, so it is brutally sensitive — too tight
     // and the blur swallows the hero along with the background.
     this.dof = new DepthOfFieldEffect(camera, {
-      focusDistance: 0.02,
-      focalLength: 0.02,
-      focusRange: 0.035,
-      bokehScale: 2.6,
+      worldFocusRange: 1.8,
+      bokehScale: 1.4 * QUALITY.scale,
       resolutionScale: QUALITY.dofScale,
     });
     // Setting `target` makes the effect derive focusDistance itself each update,
@@ -175,16 +177,18 @@ export const TOD = {
     // Backlit from 205 deg: the arena is walled by tall rock, so a low sun from
     // any other bearing leaves the whole play floor in shade. This bearing rakes
     // the floor and throws long shadows toward camera.
-    sun: { color: 0xffe3c0, intensity: 4.6, elevation: 20, azimuth: 205 },
-    fill: { color: 0x5a6e88, intensity: 0.30 },
+    sun: { color: 0xffd8a2, intensity: 4.9, elevation: 20, azimuth: 205 },
+    // Less saturated blue: highlights measured COLD (-0.057) where the
+    // reference is warm (+0.028), and a heavily blue fill is why.
+    fill: { color: 0x6d7e93, intensity: 0.38 },
     rim: { color: 0xbcd4f0, intensity: 1.25 },
     sky: { turbidity: 7.5, rayleigh: 2.6, mieCoefficient: 0.006, mieG: 0.72 },
     fog: { color: 0x8fa4b8, density: 0.030 },
-    env: 0.38,
+    env: 0.48,
     grade: {
-      shadowTint: new THREE.Vector3(-0.020, -0.002, 0.040),
-      highTint: new THREE.Vector3(0.040, 0.018, -0.016),
-      contrast: 1.10, saturation: 0.62, lift: 0.002,
+      shadowTint: new THREE.Vector3(-0.034, -0.008, 0.070),
+      highTint: new THREE.Vector3(0.150, 0.066, -0.085),
+      contrast: 1.12, saturation: 0.78, lift: 0.002,
     },
     bloom: 1.05,
   },

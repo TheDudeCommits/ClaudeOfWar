@@ -5,19 +5,19 @@
       "id": "deploy",
       "name": "Playable Build (live)",
       "status": "passed",
-      "round": 19,
+      "round": 22,
       "gap": null,
       "win_note": "Live at https://thedudecommits.github.io/ClaudeOfWar/ \u2014 verified loading with zero asset failures and responding to input.",
       "shots": [
         {
-          "path": "shots/round19/arena_ots.png",
-          "label": "arena OTS \u00b7 hair fixed, particles live",
-          "round": 19
+          "path": "shots/round22/arena_ots.png",
+          "label": "arena OTS \u00b7 DOF fixed (Performance)",
+          "round": 22
         },
         {
-          "path": "shots/round18/char_hero_closeup.png",
-          "label": "hero close-up",
-          "round": 18
+          "path": "shots/round23/arena_ots.png",
+          "label": "same frame at Fidelity",
+          "round": 23
         }
       ],
       "brief": "Shippable web build with quality settings.",
@@ -47,9 +47,9 @@
     {
       "id": "perf",
       "name": "Performance (30 FPS floor)",
-      "status": "passed",
-      "round": 17,
-      "gap": null,
+      "status": "review",
+      "round": 23,
+      "gap": "Fidelity is ~17 FPS p50 and cannot reach 30 on this fanless Air \u2014 by design, per direction to prioritise visuals. Performance holds ~41 p50.",
       "win_note": "medium preset default: ~77 FPS cold on the target MacBook Air M2 8GB. 30 FPS is a cold-machine figure \u2014 the laptop is fanless and throttles; ?q=low holds ~57 FPS hot.",
       "shots": [
         {
@@ -95,14 +95,19 @@
     {
       "id": "render-stack",
       "name": "Render & Post Stack",
-      "status": "passed",
-      "round": 17,
-      "gap": null,
+      "status": "review",
+      "round": 22,
+      "gap": "19.6% -> 3.0% of frame below luma 0.03, but the reference is 0.13% \u2014 the shadow ramp is still crushed relative to the plate.",
       "shots": [
         {
-          "path": "shots/round17/arena_ots.png",
-          "label": "arena OTS \u00b7 8/8 gates \u00b7 medium preset",
-          "round": 17
+          "path": "shots/round22/arena_ots.png",
+          "label": "arena OTS \u00b7 DOF fixed (Performance)",
+          "round": 22
+        },
+        {
+          "path": "shots/round23/arena_ots.png",
+          "label": "same frame at Fidelity",
+          "round": 23
         }
       ],
       "history": [
@@ -165,6 +170,21 @@
           "round": 17,
           "verdict": "PASS",
           "note": "shadow tint gated by smoothstep(0,0.09,l); lift solved empirically at 0.002 -> black_point 0.0196, zero pure-black pixels. 8/8 gates."
+        },
+        {
+          "round": 20,
+          "verdict": "FAIL",
+          "note": "CRITIC: focusRange is WORLD UNITS in postprocessing 6.39, not normalised depth. 0.035 = a 3.5cm deep field \u2014 the entire frame sat at max blur. My source comment asserted the opposite."
+        },
+        {
+          "round": 22,
+          "verdict": "FAIL",
+          "note": "worldFocusRange 1.8: mid-plane detail 0.0159 -> 0.0322. Exposure 0.55 -> 1.10 (p50 0.149 -> 0.450). Split-tone finally correct: warm highs +0.039 vs ref +0.028."
+        },
+        {
+          "round": 23,
+          "verdict": "PASS",
+          "note": "Fidelity mid-detail 0.05726 vs reference 0.05722 \u2014 exact match on micro-detail"
         }
       ],
       "brief": "ACES tonemap, SSAO/SSIL/SSR, volumetric fog, bloom, DOF, CA, grain, vignette, colour grade. Judged on a fixed grey-box scene for mood and grade only.",
@@ -174,13 +194,18 @@
       "id": "camera-rig",
       "name": "Camera Rig & Framing",
       "status": "review",
-      "round": 9,
+      "round": 22,
       "gap": null,
       "shots": [
         {
-          "path": "shots/round9/arena_ots.png",
-          "label": "arena OTS \u00b7 framing + grade fixed",
-          "round": 9
+          "path": "shots/round22/arena_ots.png",
+          "label": "arena OTS \u00b7 DOF fixed (Performance)",
+          "round": 22
+        },
+        {
+          "path": "shots/round23/arena_ots.png",
+          "label": "same frame at Fidelity",
+          "round": 23
         }
       ],
       "history": [
@@ -206,18 +231,18 @@
       "id": "environment",
       "name": "Environment & Level Art",
       "status": "review",
-      "round": 11,
+      "round": 22,
       "gap": "Wet zones still throw a large blown specular field across the centre-right of the floor under the backlit sun.",
       "shots": [
         {
-          "path": "shots/round11/arena_ots.png",
-          "label": "arena OTS \u00b7 macro variation wired",
-          "round": 11
+          "path": "shots/round22/arena_ots.png",
+          "label": "arena OTS \u00b7 DOF fixed (Performance)",
+          "round": 22
         },
         {
-          "path": "shots/round7/blind_gow5_match.png",
-          "label": "BLIND A/B vs Gow5.jpg \u2014 critic ID'd ours instantly",
-          "round": 7
+          "path": "shots/round23/arena_ots.png",
+          "label": "same frame at Fidelity",
+          "round": 23
         }
       ],
       "history": [
@@ -248,13 +273,18 @@
       "id": "lighting",
       "name": "Lighting & Atmosphere",
       "status": "review",
-      "round": 17,
+      "round": 22,
       "gap": "Open floor still takes few cast shadows under the backlit sun.",
       "shots": [
         {
-          "path": "shots/round17/arena_ots.png",
-          "label": "arena OTS \u00b7 8/8 gates \u00b7 medium preset",
-          "round": 17
+          "path": "shots/round22/arena_ots.png",
+          "label": "arena OTS \u00b7 DOF fixed (Performance)",
+          "round": 22
+        },
+        {
+          "path": "shots/round23/arena_ots.png",
+          "label": "same frame at Fidelity",
+          "round": 23
         }
       ],
       "history": [
@@ -275,13 +305,18 @@
       "id": "hero",
       "name": "Hero Characters",
       "status": "review",
-      "round": 19,
+      "round": 22,
       "gap": "Hair reads dark/muddy at combat range and the face still has blotchy patches from vertex classification.",
       "shots": [
         {
-          "path": "shots/round18/char_hero_closeup.png",
-          "label": "hero close-up \u00b7 strand shading",
-          "round": 18
+          "path": "shots/round22/arena_ots.png",
+          "label": "arena OTS \u00b7 DOF fixed (Performance)",
+          "round": 22
+        },
+        {
+          "path": "shots/round23/arena_ots.png",
+          "label": "same frame at Fidelity",
+          "round": 23
         }
       ],
       "history": [
@@ -307,13 +342,18 @@
       "id": "zombies",
       "name": "Zombie Enemies",
       "status": "review",
-      "round": 6,
+      "round": 22,
       "gap": "Reads as a small green figure at distance; silhouette and material need work at combat range.",
       "shots": [
         {
-          "path": "shots/round6/arena_ots.png",
-          "label": "arena OTS \u00b7 cold overcast",
-          "round": 6
+          "path": "shots/round22/arena_ots.png",
+          "label": "arena OTS \u00b7 DOF fixed (Performance)",
+          "round": 22
+        },
+        {
+          "path": "shots/round23/arena_ots.png",
+          "label": "same frame at Fidelity",
+          "round": 23
         }
       ],
       "history": [
@@ -329,29 +369,45 @@
       "id": "animation",
       "name": "Animation & Physics",
       "status": "review",
-      "round": 19,
-      "gap": "No animation clips for attack/hit/death. Motion is procedural on the root; needs real animation data or Mixamo retargeting.",
+      "round": 22,
+      "gap": "Procedural skeletal animation now drives the rig, but it is authored not captured \u2014 no mocap nuance.",
       "shots": [
         {
-          "path": "shots/round19/arena_ots.png",
-          "label": "arena OTS \u00b7 hair fixed, particles live",
-          "round": 19
+          "path": "shots/round22/arena_ots.png",
+          "label": "arena OTS \u00b7 DOF fixed (Performance)",
+          "round": 22
+        },
+        {
+          "path": "shots/round23/arena_ots.png",
+          "label": "same frame at Fidelity",
+          "round": 23
         }
       ],
-      "history": [],
+      "history": [
+        {
+          "round": 22,
+          "verdict": "FAIL",
+          "note": "anim/procedural.js drives the humanoid rig directly: stride, knee bend, hip bob/roll, spine counter-rotation, attack wind-up/pass/settle, additive hit recoil, weighted death"
+        }
+      ],
       "brief": "Locomotion, attack sets, directional hit reactions, foot IK, ragdoll, cloth."
     },
     {
       "id": "combat",
       "name": "Combat Feel",
       "status": "review",
-      "round": 19,
+      "round": 22,
       "gap": "Procedural attack motion only \u2014 the character GLBs ship one clip each, so there are no real attack/hit/death animations.",
       "shots": [
         {
-          "path": "shots/round19/arena_ots.png",
-          "label": "arena OTS \u00b7 hair fixed, particles live",
-          "round": 19
+          "path": "shots/round22/arena_ots.png",
+          "label": "arena OTS \u00b7 DOF fixed (Performance)",
+          "round": 22
+        },
+        {
+          "path": "shots/round23/arena_ots.png",
+          "label": "same frame at Fidelity",
+          "round": 23
         }
       ],
       "history": [
@@ -359,6 +415,11 @@
           "round": 19,
           "verdict": "FAIL",
           "note": "3-hit combo w/ commitment frames, dodge i-frames, hitstop, impact lights, sparks, zombie AI with separation + telegraphed attacks"
+        },
+        {
+          "round": 22,
+          "verdict": "FAIL",
+          "note": "CRITIC: camera punch halved by a double multiply; FX froze during hitstop; no parry despite HUD advertising guard; combo never lapsed. All fixed."
         }
       ],
       "brief": "Hitstop, screen shake, camera punch, parry/dodge windows, commitment frames, enemy AI."
@@ -367,18 +428,18 @@
       "id": "vfx",
       "name": "VFX & Impact",
       "status": "review",
-      "round": 19,
+      "round": 22,
       "gap": "Particles are live but sparse at combat range; no near-camera occluders yet.",
       "shots": [
         {
-          "path": "shots/round19/arena_ots.png",
-          "label": "arena OTS \u00b7 hair fixed, particles live",
-          "round": 19
+          "path": "shots/round22/arena_ots.png",
+          "label": "arena OTS \u00b7 DOF fixed (Performance)",
+          "round": 22
         },
         {
-          "path": "shots/round18/char_hero_closeup.png",
-          "label": "hero close-up",
-          "round": 18
+          "path": "shots/round23/arena_ots.png",
+          "label": "same frame at Fidelity",
+          "round": 23
         }
       ],
       "history": [
