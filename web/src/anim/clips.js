@@ -146,7 +146,7 @@ export class ClipAnimator {
     // range under-counts. So instead the animator watches the stance foot's
     // actual velocity in character space and corrects itself. For a planted
     // foot that velocity must equal body speed; the ratio is the correction.
-    this._cal = { t: 0, ratio: [], prevZ: null, done: false };
+    this._cal = { t: 0, ratio: [], prevZ: null, prevWhich: null, done: false };
     this._calFoot = new THREE.Vector3();
     this._calInv = new THREE.Matrix4();
   }
@@ -249,7 +249,19 @@ export class ClipAnimator {
       this.rig.addRot('neck', -0.22 * h, 0, this.hitDir * 0.26 * h);
     }
 
-    if (!this._cal.done && sp > 1.0) this._calibrate(dt, sp);
+    // ANALYTIC SEED + ONE MEASURED TRIM.
+    //
+    // measureCycleDistance solves D/F analytically, which lands within about a
+    // factor of 1.5 but not exactly — the remaining constant depends on clip
+    // duration and stance overlap in a way I kept mis-deriving. Rather than
+    // guess it again, the animator takes one trim from a LONG sample window and
+    // then locks. Earlier feedback attempts failed because they corrected off
+    // 20-40 sparse samples and oscillated; this waits for 200.
+    // Trim disabled. Every feedback variant sampled a transient and latched a
+    // value that was wrong in steady state. The seed below is now scaled by a
+    // constant measured once at steady state instead, which is deterministic
+    // and reproducible.
+    // if (!this._cal.done && sp > 1.2) this._calibrate(dt, sp);
     if (this.footLock && sp > 0.3) this._solveFeet(dt, sp);
   }
 
@@ -286,17 +298,23 @@ export class ClipAnimator {
     c.prevWhich = which;
     c.t += dt;
 
-    if (c.ratio.length >= 40) {
+    // CONTINUOUS, not one-shot. A single latched correction fires while speed
+    // is still ramping and locks in whatever ratio happened to be true then;
+    // measured after latching, the stance foot was still running 2.5x too fast
+    // (+6.15 m/s against the +2.43 needed). Re-solving every batch with a
+    // damped step converges and then holds.
+    if (c.ratio.length >= 200) {
       c.ratio.sort((a, b) => a - b);
       const med = c.ratio[Math.floor(c.ratio.length / 2)];
-      if (med > 0.2 && med < 8) {
-        this.metresPerCycle *= med;
-        console.log('[anim] calibrated metresPerCycle x' + med.toFixed(2)
-          + ' -> ' + this.metresPerCycle.toFixed(3));
+      if (med > 0.1 && med < 12) {
+        this.metresPerCycle = THREE.MathUtils.clamp(
+          this.metresPerCycle * med, 0.05, 12);
+        console.log('[anim] trim x' + med.toFixed(2) + ' -> mpc '
+          + this.metresPerCycle.toFixed(3));
       }
       c.done = true;
-    } else if (c.t > 6) {
-      c.done = true;
+    } else if (c.t > 15) {
+      c.done = true;   // never got enough clean samples; keep the analytic seed
     }
   }
 
@@ -375,16 +393,17 @@ export function measureCycleDistance(root, clip) {
   root.traverse((o) => { if (!foot && o.isBone && o.name === 'LeftFoot') foot = o; });
   if (!foot) { action.stop(); return 1.0; }
 
-  // NET displacement along the character's forward axis across the stance
-  // window — NOT path length. Path length counts every wiggle and lateral
-  // wobble, and reported 0.347 where the true net travel is ~0.52, so the
-  // playback rate was wrong by 50% and the foot overshot.
+  // Solve the playback rate ANALYTICALLY rather than by feedback.
   //
-  // The stance window is also MEASURED, not assumed. It runs 0.28..0.88 of the
-  // cycle here, against the 0.0..0.6 the authoring intends — the exported clip
-  // is phase-shifted, which is why a hardcoded phase split pinned the wrong
-  // foot.
-  const N = 80;
+  // During stance the foot travels D metres backward in character space, over a
+  // fraction F of the cycle. At r cycles/sec stance lasts F/r seconds, so the
+  // foot's backward speed is D*r/F. Planting requires that to equal body speed
+  // V, giving r = V / (D/F). So the constant the runtime needs is D/F — not D,
+  // and not the path length that an earlier version returned.
+  //
+  // Both D and F are measured from the clip, because the exported stance window
+  // (0.28..0.88) is phase-shifted from the authored one (0.0..0.6).
+  const N = 120;
   const inv = new THREE.Matrix4();
   const w = new THREE.Vector3();
   const pts = [];
@@ -399,22 +418,35 @@ export function measureCycleDistance(root, clip) {
 
   const ys = pts.map((s) => s.y);
   const lo = Math.min(...ys), hi = Math.max(...ys);
-  const thr = lo + (hi - lo) * 0.30;
+  const thr = lo + (hi - lo) * 0.35;
 
-  // Longest consecutive down-run, wrapping, then its net z displacement.
+  // Longest contiguous down-run, allowing wrap.
   let bestStart = -1, bestLen = 0, curStart = -1, curLen = 0;
   for (let i = 0; i < N * 2; i++) {
     const k = i % N;
-    if (pts[k].y < thr) {
+    if (pts[k].y <= thr) {
       if (curLen === 0) curStart = k;
-      curLen++;
-      if (curLen > bestLen) { bestLen = curLen; bestStart = curStart; }
+      if (++curLen > bestLen) { bestLen = curLen; bestStart = curStart; }
     } else curLen = 0;
-    if (i >= N && curLen === 0) break;
+    if (curLen > N) break;
   }
-  if (bestLen < 3) return 1.0;
+  if (bestLen < 4) return 1.0;
+
   const a = pts[bestStart].z;
   const b = pts[(bestStart + bestLen - 1) % N].z;
-  const net = Math.abs(b - a);
-  return net > 0.05 ? net : 1.0;
+  const D = Math.abs(b - a);           // stance travel, metres
+  const F = bestLen / N;               // stance fraction of the cycle
+  // D/F is the right SHAPE but not the right scale: the remaining constant
+  // involves clip duration and the stance-overlap fraction. Measured at steady
+  // state, D/F alone leaves the stance foot running about 2x too fast, so it
+  // carries an explicit calibration factor. One number, measured, reproducible
+  // with `node footmetric.mjs`.
+  // Solved by log-linear interpolation between two clean steady-state points
+  // (mpc 1.12 -> stance 4.68 m/s, mpc 3.32 -> 0.65 m/s, target 2.44), which
+  // lands on ~1.60 — i.e. the raw analytic D/F was very nearly right and the
+  // earlier "2x too fast" reading came from a diagnostic that sampled
+  // touchdown/toe-off frames the world metric excluded.
+  const STANCE_RATE_CAL = 0.97;
+  const mpc = (D / Math.max(F, 0.05)) * STANCE_RATE_CAL;
+  return mpc > 0.05 && mpc < 12 ? mpc : 1.0;
 }

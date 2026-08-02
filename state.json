@@ -369,8 +369,8 @@
       "id": "animation",
       "name": "Animation & Physics",
       "status": "rejected",
-      "round": 42,
-      "gap": "FEET STILL NOT PLANTED. And my slide metric is unreliable \u2014 three harnesses give 53%, 132% and 163% slip for the SAME build. Fixing the metric is now a prerequisite for fixing the motion.",
+      "round": 43,
+      "gap": "Feet still slide (~100% of body speed). BUT the metric is now validated and reproducible: web/footmetric.mjs --validate passes a stationary case (0.067 m/s) and a frozen-pose control (exactly 100%). Tuning cannot converge because per-run variance exceeds the effect at 20-80 stance samples; the next step is denser sampling, not more tuning.",
       "shots": [
         {
           "path": "shots/round36/arena_ots.png",
@@ -503,6 +503,21 @@
           "round": 42,
           "verdict": "FAIL",
           "note": "Foot-lock IK re-tested with hysteresis on stance selection: 53% -> 104%. Worse again. Remains disabled."
+        },
+        {
+          "round": 43,
+          "verdict": "PASS",
+          "note": "METRIC FIXED AND VALIDATED. web/footmetric.mjs samples both feet independently at 60Hz, segments per-foot stance runs, trims touchdown/toe-off, and measures only within a run so a stance switch can never be sampled. --validate proves it against two known answers: stationary -> 0.067 m/s, frozen pose with rotation pinned -> exactly 100%."
+        },
+        {
+          "round": 43,
+          "verdict": "FAIL",
+          "note": "True slip is ~90-110%, not the 53% an earlier contaminated harness suggested. The feet skate."
+        },
+        {
+          "round": 43,
+          "verdict": "FAIL",
+          "note": "Three rate-solving strategies tried against the good metric: continuous damped feedback (ran away 6.15 -> 8.08 m/s), analytic D/F seed plus one 200-sample trim (overshot), and a fixed calibration constant. Response is NON-MONOTONIC in mpc (1.12->4.68, 1.60->5.17, 3.32->0.65), so the signal is below the noise floor at current sample density."
         }
       ],
       "brief": "Locomotion, attack sets, directional hit reactions, foot IK, ragdoll, cloth."

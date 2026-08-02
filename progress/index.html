@@ -43,7 +43,7 @@ footer{padding:26px 28px;color:#5d646e;font-size:11.5px}
 <span class=pill style='border-color:#a855f744;color:#a855f7'>Lighting &amp; Atmosphere · r36</span>
 <span class=pill style='border-color:#a855f744;color:#a855f7'>Hero Characters · r36</span>
 <span class=pill style='border-color:#a855f744;color:#a855f7'>Zombie Enemies · r36</span>
-<span class=pill style='border-color:#ef444444;color:#ef4444'>Animation &amp; Physics · r42</span>
+<span class=pill style='border-color:#ef444444;color:#ef4444'>Animation &amp; Physics · r43</span>
 <span class=pill style='border-color:#a855f744;color:#a855f7'>Combat Feel · r38</span>
 <span class=pill style='border-color:#a855f744;color:#a855f7'>VFX &amp; Impact · r36</span>
 <span class=pill style='border-color:#22c55e44;color:#22c55e'>HUD &amp; UI · r36</span>
@@ -157,12 +157,15 @@ footer{padding:26px 28px;color:#5d646e;font-size:11.5px}
 <div class=hr><span class=hn>r6</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>draugr GLB ported and lit</span></div>
 </div>
 </div></div>
-<div class=piece><div class=ph><span class=dot style='background:#ef4444'></span><span class=pn>Animation &amp; Physics</span><span class=st style='color:#ef4444'>sent back</span><span class=rd>round 42</span></div><div class=pb>
-<div class=gap><b>Biggest remaining gap:</b> FEET STILL NOT PLANTED. And my slide metric is unreliable — three harnesses give 53%, 132% and 163% slip for the SAME build. Fixing the metric is now a prerequisite for fixing the motion.</div>
+<div class=piece><div class=ph><span class=dot style='background:#ef4444'></span><span class=pn>Animation &amp; Physics</span><span class=st style='color:#ef4444'>sent back</span><span class=rd>round 43</span></div><div class=pb>
+<div class=gap><b>Biggest remaining gap:</b> Feet still slide (~100% of body speed). BUT the metric is now validated and reproducible: web/footmetric.mjs --validate passes a stationary case (0.067 m/s) and a frozen-pose control (exactly 100%). Tuning cannot converge because per-run variance exceeds the effect at 20-80 stance samples; the next step is denser sampling, not more tuning.</div>
 <div class=shots>
 <div class=shot><a href='../shots/round36/arena_ots.png' target=_blank><img src='../shots/round36/arena_ots.png' loading=lazy></a><div class=cap><span>r36 · baked char AO, ambient split, MSAA</span><span>r36</span></div></div>
 </div>
 <div class=hist>
+<div class=hr><span class=hn>r43</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>Three rate-solving strategies tried against the good metric: continuous damped feedback (ran away 6.15 -&gt; 8.08 m/s), analytic D/F seed plus one 200-sample trim (overshot), and a fixed calibration constant. Response is NON-MONOTONIC in mpc (1.12-&gt;4.68, 1.60-&gt;5.17, 3.32-&gt;0.65), so the signal is below the noise floor at current sample density.</span></div>
+<div class=hr><span class=hn>r43</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>True slip is ~90-110%, not the 53% an earlier contaminated harness suggested. The feet skate.</span></div>
+<div class=hr><span class=hn>r43</span><span class=hv style='color:#22c55e'>PASS</span><span class=ht>METRIC FIXED AND VALIDATED. web/footmetric.mjs samples both feet independently at 60Hz, segments per-foot stance runs, trims touchdown/toe-off, and measures only within a run so a stance switch can never be sampled. --validate proves it against two known answers: stationary -&gt; 0.067 m/s, frozen pose with rotation pinned -&gt; exactly 100%.</span></div>
 <div class=hr><span class=hn>r42</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>Foot-lock IK re-tested with hysteresis on stance selection: 53% -&gt; 104%. Worse again. Remains disabled.</span></div>
 <div class=hr><span class=hn>r42</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>Added runtime auto-calibration: the animator watches the stance foot velocity in character space and scales metresPerCycle by the ratio to body speed. Converges consistently (x3.0-3.9 -&gt; mpc ~1.0), which is principled and self-correcting, but has not produced a planted foot.</span></div>
 <div class=hr><span class=hn>r42</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>measureCycleDistance summed PATH LENGTH (0.324m) rather than NET stance displacement (~0.52m measured), so the playback rate was ~60% off. Rewritten to use net displacement over a MEASURED stance window (0.28-0.88, not the authored 0.0-0.6 — the exported clip is phase-shifted).</span></div>
@@ -174,9 +177,6 @@ footer{padding:26px 28px;color:#5d646e;font-size:11.5px}
 <div class=hr><span class=hn>r40</span><span class=hv style='color:#22c55e'>PASS</span><span class=ht>ARMS FIXED. A-pose closed with a runtime additive on the verified bind-axis machinery, applied to hero and all draugr.</span></div>
 <div class=hr><span class=hn>r40</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>Playback rate clamped to 3.0 while the required rate was speed/0.319 = 10.2. Legs were capped at a third of the needed cadence, which is why sweeping metresPerCycle gave a flat response and misled me twice.</span></div>
 <div class=hr><span class=hn>r40</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>IK constraint was on the FOOT with chain_count=2 (Foot-&gt;Leg), excluding the thigh — the solver could only bend the knee. Moved to the shin with a thigh+shin chain.</span></div>
-<div class=hr><span class=hn>r40</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>UNIT BUG in the Blender authoring: bone_len measured in armature space (leg=78.1) while IK empties are placed in world space (leg=0.78), so an authored 6cm lift asked the solver to raise the foot 10 METRES and it saturated. Foot lift 0.92m -&gt; 0.40m.</span></div>
-<div class=hr><span class=hn>r40</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>makeInPlace() (stripping Hips horizontal translation) made slip WORSE, 98% -&gt; 117%. Written, measured, and deliberately not applied.</span></div>
-<div class=hr><span class=hn>r40</span><span class=hv style='color:#22c55e'>PASS</span><span class=ht>ARMS FIXED: A-pose closed via runtime additive using the verified bind-axis machinery, after Blender-side arm authoring produced correct clip data (35.5deg off bind) that still read wrong. Applied to hero and all draugr.</span></div>
 </div>
 </div></div>
 <div class=piece><div class=ph><span class=dot style='background:#a855f7'></span><span class=pn>Combat Feel</span><span class=st style='color:#a855f7'>in review</span><span class=rd>round 38</span></div><div class=pb>
@@ -222,4 +222,4 @@ footer{padding:26px 28px;color:#5d646e;font-size:11.5px}
 <div class=hr><span class=hn>r37</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>AudioEngine wired: impacts (inharmonic metal partials), whoosh, parry ring, hurt with master duck, footsteps driven off the animator stride phase, wind bed + drone. Verified by analyser: impact 0.703, parry 0.502, ambience 0.057.</span></div>
 </div>
 </div></div>
-</main><footer>auto-refreshes every 10s · generated 22:45:44</footer>
+</main><footer>auto-refreshes every 10s · generated 23:01:51</footer>
