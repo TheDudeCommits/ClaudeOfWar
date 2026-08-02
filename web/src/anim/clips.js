@@ -126,17 +126,29 @@ export class ClipAnimator {
     this.armClose = opts.armClose ?? 0.62;   // radians of inward roll
     this.elbowBend = opts.elbowBend ?? 0.34;
     // Foot lock state: the world point each foot is pinned to while in stance.
-    // Runtime foot-lock IK is implemented and OFF by default. Measured slip
-    // against body speed: 111% without it, 105% with height-based stance
-    // selection, 148% with phase-based. It is not currently earning its place,
-    // and the solver is not the problem — the stance WINDOW is. The clip's
-    // phase origin does not line up with the authored 0..0.6 stance window, so
-    // the lock engages on the wrong foot for part of the cycle. Enable with
-    // { footLock: true } once that alignment is measured rather than guessed.
+    // Runtime foot-lock IK is implemented, bind-safe, and OFF by default.
+    // Measured slip against body speed, same-foot metric:
+    //     calibrated clip alone .......  53%
+    //     calibrated clip + foot lock .. 104%
+    // It consistently makes things worse: once the clip's playback rate is
+    // correctly calibrated the clip already moves the foot at nearly the right
+    // rate, and the IK then fights it. Kept behind { footLock: true } because
+    // it will be the right tool once a proper walk/idle/turn clip set exists
+    // and blending between them reintroduces slip the rate cannot fix.
     this.footLock = opts.footLock === true;
     this._lock = [new THREE.Vector3(), new THREE.Vector3()];
     this._locked = [false, false];
     this._wasStance = [false, false];
+
+    // Auto-calibration. metresPerCycle can be derived analytically, but every
+    // analytic attempt has been wrong: path length over-counts wiggle, the
+    // measured stance window is phase-shifted from the authored one, and net
+    // range under-counts. So instead the animator watches the stance foot's
+    // actual velocity in character space and corrects itself. For a planted
+    // foot that velocity must equal body speed; the ratio is the correction.
+    this._cal = { t: 0, ratio: [], prevZ: null, done: false };
+    this._calFoot = new THREE.Vector3();
+    this._calInv = new THREE.Matrix4();
   }
 
   get ok() { return this.rig.ok && Object.keys(this.actions).length > 0; }
@@ -237,7 +249,55 @@ export class ClipAnimator {
       this.rig.addRot('neck', -0.22 * h, 0, this.hitDir * 0.26 * h);
     }
 
+    if (!this._cal.done && sp > 1.0) this._calibrate(dt, sp);
     if (this.footLock && sp > 0.3) this._solveFeet(dt, sp);
+  }
+
+  /**
+   * Watch the stance foot and correct metresPerCycle until it plants.
+   *
+   * A planted foot travels backward in character space at exactly body speed.
+   * Whatever it actually does, the ratio between the two is the factor
+   * metresPerCycle is wrong by, so one multiply converges it. Samples are only
+   * taken while the SAME foot remains the lower one, because the position
+   * jumps a whole stride at a stance switch and that discontinuity is what has
+   * corrupted every slide measurement in this project so far.
+   */
+  _calibrate(dt, speed) {
+    const rig = this.rig;
+    const L = rig.b.LeftFoot, R = rig.b.RightFoot;
+    if (!L || !R) { this._cal.done = true; return; }
+    this.root.updateWorldMatrix(true, true);
+    L.updateWorldMatrix(true, false);
+    R.updateWorldMatrix(true, false);
+    const lp = _T.setFromMatrixPosition(L.matrixWorld).y;
+    const rp = _H.setFromMatrixPosition(R.matrixWorld).y;
+    const which = lp <= rp ? 'L' : 'R';
+    this._calFoot.setFromMatrixPosition((which === 'L' ? L : R).matrixWorld);
+    this._calInv.copy(this.root.matrixWorld).invert();
+    const z = this._calFoot.applyMatrix4(this._calInv).z;
+
+    const c = this._cal;
+    if (c.prevZ !== null && c.prevWhich === which && dt > 0 && dt < 0.05) {
+      const v = (z - c.prevZ) / dt;
+      if (v > 0.2) c.ratio.push(v / speed);
+    }
+    c.prevZ = z;
+    c.prevWhich = which;
+    c.t += dt;
+
+    if (c.ratio.length >= 40) {
+      c.ratio.sort((a, b) => a - b);
+      const med = c.ratio[Math.floor(c.ratio.length / 2)];
+      if (med > 0.2 && med < 8) {
+        this.metresPerCycle *= med;
+        console.log('[anim] calibrated metresPerCycle x' + med.toFixed(2)
+          + ' -> ' + this.metresPerCycle.toFixed(3));
+      }
+      c.done = true;
+    } else if (c.t > 6) {
+      c.done = true;
+    }
   }
 
   /**
@@ -248,7 +308,7 @@ export class ClipAnimator {
    * at runtime. Whichever foot is lower is the stance foot; it is pinned at the
    * world point where it landed and released when the clip lifts it again.
    */
-  _solveFeet(dt, speed) {
+  _solveFeet(dt, speed) {   // eslint-disable-line no-unused-vars
     const rig = this.rig;
     const sides = ['Left', 'Right'];
     this.root.updateWorldMatrix(true, true);
@@ -261,15 +321,26 @@ export class ClipAnimator {
       pos[i].setFromMatrixPosition(b.matrixWorld);
     }
 
-    // Stance is derived from the CLIP PHASE, never from which foot is lower.
-    // Using foot height creates a feedback loop — the IK moves the stance foot,
-    // which changes which foot is lowest, which reassigns stance. Measured, it
-    // flipped 85 times in 180 frames where a 0.8s cycle should flip about 5.
-    const act = this.actions.run;
-    const clip = act && act.getClip();
-    if (!clip || !clip.duration) return;
-    const phase = ((act.time % clip.duration) / clip.duration + 1) % 1;
-    const stance = phase < 0.5 ? 0 : 1;
+    // Stance selection with HYSTERESIS and a minimum dwell.
+    //
+    // Plain "whichever foot is lower" is a feedback loop: the IK moves the
+    // stance foot, which changes which foot is lowest, which reassigns stance.
+    // Measured, it flipped 85 times in 180 frames where a 0.8s cycle should
+    // give about 5. Deriving stance from clip phase avoids the loop but the
+    // exported clip is phase-shifted (its stance window measures 0.28..0.88,
+    // not the authored 0.0..0.6), so a hardcoded split pins the wrong foot.
+    //
+    // Requiring a clear height margin plus a dwell time gives a stable signal
+    // from the honest source without either failure.
+    this._dwell = (this._dwell || 0) + dt;
+    let stance = this._stance ?? (pos[0].y <= pos[1].y ? 0 : 1);
+    const other = 1 - stance;
+    if (this._dwell > 0.12 && pos[other].y < pos[stance].y - 0.035) {
+      stance = other;
+      this._dwell = 0;
+      this._locked[0] = this._locked[1] = false;
+    }
+    this._stance = stance;
 
     for (let i = 0; i < 2; i++) {
       if (i !== stance) { this._locked[i] = false; continue; }
@@ -304,32 +375,46 @@ export function measureCycleDistance(root, clip) {
   root.traverse((o) => { if (!foot && o.isBone && o.name === 'LeftFoot') foot = o; });
   if (!foot) { action.stop(); return 1.0; }
 
-  // Sample the foot in CHARACTER space across one cycle. Stance is the longest
-  // run of low-height samples; its path length is how far one cycle carries the
-  // body. Measured rather than assumed, because getting it wrong reintroduces
-  // exactly the sliding the clips exist to remove — a 1.0 fallback left the
-  // stance foot moving at 2.53 m/s when the true value was 0.643.
-  const N = 60;
+  // NET displacement along the character's forward axis across the stance
+  // window — NOT path length. Path length counts every wiggle and lateral
+  // wobble, and reported 0.347 where the true net travel is ~0.52, so the
+  // playback rate was wrong by 50% and the foot overshot.
+  //
+  // The stance window is also MEASURED, not assumed. It runs 0.28..0.88 of the
+  // cycle here, against the 0.0..0.6 the authoring intends — the exported clip
+  // is phase-shifted, which is why a hardcoded phase split pinned the wrong
+  // foot.
+  const N = 80;
   const inv = new THREE.Matrix4();
   const w = new THREE.Vector3();
   const pts = [];
-  for (let i = 0; i <= N; i++) {
+  for (let i = 0; i < N; i++) {
     mixer.setTime((i / N) * clip.duration);
     root.updateWorldMatrix(true, true);
     foot.getWorldPosition(w);
     inv.copy(root.matrixWorld).invert();
-    pts.push({ p: w.clone().applyMatrix4(inv), y: w.y });
+    pts.push({ z: w.clone().applyMatrix4(inv).z, y: w.y });
   }
   action.stop();
 
   const ys = pts.map((s) => s.y);
   const lo = Math.min(...ys), hi = Math.max(...ys);
-  const thr = lo + (hi - lo) * 0.20;
-  let best = 0, run = 0;
-  for (let i = 1; i < pts.length; i++) {
-    if (pts[i].y < thr && pts[i - 1].y < thr) run += pts[i].p.distanceTo(pts[i - 1].p);
-    else { best = Math.max(best, run); run = 0; }
+  const thr = lo + (hi - lo) * 0.30;
+
+  // Longest consecutive down-run, wrapping, then its net z displacement.
+  let bestStart = -1, bestLen = 0, curStart = -1, curLen = 0;
+  for (let i = 0; i < N * 2; i++) {
+    const k = i % N;
+    if (pts[k].y < thr) {
+      if (curLen === 0) curStart = k;
+      curLen++;
+      if (curLen > bestLen) { bestLen = curLen; bestStart = curStart; }
+    } else curLen = 0;
+    if (i >= N && curLen === 0) break;
   }
-  best = Math.max(best, run);
-  return best > 0.05 ? best : 1.0;
+  if (bestLen < 3) return 1.0;
+  const a = pts[bestStart].z;
+  const b = pts[(bestStart + bestLen - 1) % N].z;
+  const net = Math.abs(b - a);
+  return net > 0.05 ? net : 1.0;
 }

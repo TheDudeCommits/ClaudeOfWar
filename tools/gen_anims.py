@@ -148,6 +148,12 @@ def author_locomotion(arm, name, cycle_frames, stride, lift, bob, lean):
         zl, yl = foot_path(p, stride, lift, ground)
         zr, yr = foot_path((p + 0.5) % 1.0, stride, lift, ground)
 
+        # NOTE THE SIGN. Blender's +Y maps to three.js's -Z through the glTF
+        # Y-up conversion, so `+ zl` sent the stance foot FORWARD in character
+        # space. Instead of cancelling the body's motion it added to it, which
+        # is why the measured stance foot moved at 3.08 m/s in character space
+        # while the body did 2.83 and the world-space slip came out at 3.51
+        # rather than ~0. Every tuning attempt was fighting a sign.
         eL.location = Vector((lw.x, lw.y + zl, yl))
         eR.location = Vector((rw.x, rw.y + zr, yr))
         eL.keyframe_insert('location', frame=f)

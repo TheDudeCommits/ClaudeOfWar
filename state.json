@@ -369,8 +369,8 @@
       "id": "animation",
       "name": "Animation & Physics",
       "status": "rejected",
-      "round": 41,
-      "gap": "FEET STILL NOT PLANTED \u2014 stance slip ~106% of body speed. Arms ARE fixed and foot lift is natural (0.40m). Runtime foot-lock IK is implemented, bind-safe, and OFF: the solver is not the problem, the stance WINDOW is \u2014 the clip phase origin does not align with the authored 0..0.6 stance window.",
+      "round": 42,
+      "gap": "FEET STILL NOT PLANTED. And my slide metric is unreliable \u2014 three harnesses give 53%, 132% and 163% slip for the SAME build. Fixing the metric is now a prerequisite for fixing the motion.",
       "shots": [
         {
           "path": "shots/round36/arena_ots.png",
@@ -483,6 +483,26 @@
           "round": 41,
           "verdict": "FAIL",
           "note": "Deriving stance from clip phase removed the loop but made slip worse (105% -> 148%): the exported clip phase origin does not match the authored stance window. Lock disabled pending a measured alignment."
+        },
+        {
+          "round": 42,
+          "verdict": "FAIL",
+          "note": "Found the real reason every slide measurement in this project has been suspect: taking \"whichever foot is lower\" per sample creates a POSITION DISCONTINUITY at every stance switch \u2014 the reading jumps a whole stride. Same-foot-only sampling is required."
+        },
+        {
+          "round": 42,
+          "verdict": "FAIL",
+          "note": "measureCycleDistance summed PATH LENGTH (0.324m) rather than NET stance displacement (~0.52m measured), so the playback rate was ~60% off. Rewritten to use net displacement over a MEASURED stance window (0.28-0.88, not the authored 0.0-0.6 \u2014 the exported clip is phase-shifted)."
+        },
+        {
+          "round": 42,
+          "verdict": "FAIL",
+          "note": "Added runtime auto-calibration: the animator watches the stance foot velocity in character space and scales metresPerCycle by the ratio to body speed. Converges consistently (x3.0-3.9 -> mpc ~1.0), which is principled and self-correcting, but has not produced a planted foot."
+        },
+        {
+          "round": 42,
+          "verdict": "FAIL",
+          "note": "Foot-lock IK re-tested with hysteresis on stance selection: 53% -> 104%. Worse again. Remains disabled."
         }
       ],
       "brief": "Locomotion, attack sets, directional hit reactions, foot IK, ragdoll, cloth."
