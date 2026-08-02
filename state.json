@@ -369,8 +369,8 @@
       "id": "animation",
       "name": "Animation & Physics",
       "status": "review",
-      "round": 36,
-      "gap": "Procedural skeletal animation now drives the rig, but it is authored not captured \u2014 no mocap nuance.",
+      "round": 37,
+      "gap": "Footsteps now sync to the stride phase, but there is still no root-motion or IK ground adaptation.",
       "shots": [
         {
           "path": "shots/round36/arena_ots.png",
@@ -391,12 +391,12 @@
       "id": "combat",
       "name": "Combat Feel",
       "status": "review",
-      "round": 36,
-      "gap": "Procedural attack motion only \u2014 the character GLBs ship one clip each, so there are no real attack/hit/death animations.",
+      "round": 37,
+      "gap": "No ragdoll on death, no launcher/juggle, no grabs or finishers. Enemy attack variety is one swing.",
       "shots": [
         {
           "path": "shots/round36/arena_ots.png",
-          "label": "r36 \u00b7 baked char AO, ambient split, MSAA",
+          "label": "r36 \u00b7 arena OTS",
           "round": 36
         }
       ],
@@ -410,6 +410,21 @@
           "round": 22,
           "verdict": "FAIL",
           "note": "CRITIC: camera punch halved by a double multiply; FX froze during hitstop; no parry despite HUD advertising guard; combo never lapsed. All fixed."
+        },
+        {
+          "round": 37,
+          "verdict": "FAIL",
+          "note": "attack-token director: max 2 token holders with 0.55s spacing, everyone else holds a rotating ring slot. Measured peak 2 tokens / peak 1 SIMULTANEOUS attacker across 240 frames \u2014 a readable crowd instead of a scrum."
+        },
+        {
+          "round": 37,
+          "verdict": "FAIL",
+          "note": "body collision added \u2014 actors previously walked through each other. Mass-weighted separation, 2 passes/frame. Worst overlap -0.000m over 2000 pair-samples."
+        },
+        {
+          "round": 37,
+          "verdict": "FAIL",
+          "note": "knockback impulse on every hit, scaled by target mass; finisher launches (9.5 m/s) vs light hits (3.2)."
         }
       ],
       "brief": "Hitstop, screen shake, camera punch, parry/dodge windows, commitment frames, enemy AI."
@@ -467,17 +482,17 @@
     {
       "id": "audio",
       "name": "Audio",
-      "status": "queued",
-      "round": 36,
-      "gap": null,
-      "shots": [
+      "status": "review",
+      "round": 37,
+      "gap": "Procedural only \u2014 no music score, no enemy vocalisations, no positional panning.",
+      "shots": [],
+      "history": [
         {
-          "path": "shots/round36/arena_ots.png",
-          "label": "r36 \u00b7 baked char AO, ambient split, MSAA",
-          "round": 36
+          "round": 37,
+          "verdict": "FAIL",
+          "note": "AudioEngine wired: impacts (inharmonic metal partials), whoosh, parry ring, hurt with master duck, footsteps driven off the animator stride phase, wind bed + drone. Verified by analyser: impact 0.703, parry 0.502, ambience 0.057."
         }
       ],
-      "history": [],
       "brief": "Impact layers, weapon whooshes, ambience beds, music stems, enemy vocals."
     }
   ]

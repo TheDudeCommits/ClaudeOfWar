@@ -9,10 +9,11 @@ import * as THREE from 'three';
  * on top of the frame.
  */
 export class CombatFX {
-  constructor(scene, camera, ots) {
+  constructor(scene, camera, ots, audio = null) {
     this.scene = scene;
     this.camera = camera;
     this.ots = ots;
+    this.audio = audio;
     this.hitstop = 0;
     this._lights = [];
     this._sparks = [];
@@ -64,6 +65,7 @@ export class CombatFX {
     slot.t = 0.09;
     this.ots?.impact(0.42 * power + 0.12, -5.5 * power);
     this._emitSparks(pos, 18 + Math.floor(22 * power), power);
+    this.audio?.impact(power);
   }
 
   swing(pos, combo) {
@@ -86,17 +88,20 @@ export class CombatFX {
     slot.t = 0.13;
     this.ots?.impact(0.5, -6);
     this._emitSparks(pos, 34, 1.2);
+    this.audio?.parry();
   }
 
   blocked(pos) {
     this.hitstop = Math.max(this.hitstop, 0.05);
     this.ots?.impact(0.3, -3);
     this._emitSparks(pos, 12, 0.6);
+    this.audio?.impact(0.4);
   }
 
   playerHit() {
     this.hitstop = Math.max(this.hitstop, 0.07);
     this.ots?.impact(0.55, -7);
+    this.audio?.hurt();
   }
 
   _emitSparks(pos, n, power) {

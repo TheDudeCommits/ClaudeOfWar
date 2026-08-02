@@ -18,10 +18,12 @@ import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
 THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
 THREE.Mesh.prototype.raycast = acceleratedRaycast;
-import { Input, Player, Zombie } from './game/gameplay.js';
+import { Input, Player, Zombie, resolveBodies } from './game/gameplay.js';
 import { CombatFX } from './game/fx.js';
+import { CombatDirector } from './game/director.js';
 import { HUD } from './ui/hud.js';
 import { equip, weaponStats } from './game/weapons.js';
+import { AudioEngine } from './audio/engine.js';
 
 const ARENA_PARTS = ['ground', 'stone', 'snow', 'dirt', 'timber', 'plank',
   'bark', 'iron', 'rope', 'cloth', 'thatch'];
@@ -52,6 +54,9 @@ const boot = document.getElementById('boot');
 const state = { hero: null, zombie: null, zombieProto: null, arena: new THREE.Group() };
 const enemies = [];
 let player = null, input = null, fx = null, hud = null, wave = 1;
+const audio = new AudioEngine();
+const director = new CombatDirector({ maxAttackers: 2 });
+const _bodies = [];   // reused; player + living enemies
 
 /** Scale envMapIntensity on every material under a character root. */
 function dampCharacterAmbient(root, k) {
@@ -69,7 +74,9 @@ function spawnZombie(x, z) {
   const root = skeletonClone(state.zombieProto);
   root.position.set(x, 0, z);
   scene.add(root);
-  enemies.push(new Zombie(root));
+  const zed = new Zombie(root);
+  zed.director = director;   // grants/revokes the attack token
+  enemies.push(zed);
   return root;
 }
 
@@ -191,8 +198,19 @@ function frame() {
     // atmosphere do not, which is what makes a hit land rather than stutter.
     const sdt = hud.open ? 0 : fx.update(dt);
     if (sdt > 0) {
+      // Director runs first: it decides who may attack this frame and where
+      // everyone else should stand.
+      director.update(sdt, player, enemies);
       player.update(sdt, input, camera, enemies, fx);
       for (const e of enemies) e.update(sdt, player, fx, enemies);
+      // Bodies resolve after movement so nothing ends the frame inside anything
+      // else. Two passes: one sweep leaves residual overlap in a dense pack.
+      _bodies.length = 0;
+      _bodies.push(player);
+      for (const e of enemies) if (!e.dead) _bodies.push(e);
+      resolveBodies(_bodies, sdt);
+      resolveBodies(_bodies, sdt);
+      for (const a of _bodies) a.clampToArena();
     }
     // Rebuilt in place; `filter().map()` allocated two arrays every frame.
     ots.avoid.length = 0;
@@ -314,12 +332,16 @@ window.__COW = {
     // Capture runs must stay deterministic, so gameplay only boots for players.
     if (!shotName) {
       input = new Input(renderer.domElement);
+      // Browsers require a gesture before an AudioContext will start.
+      const unlock = () => { audio.unlock(); };
+      addEventListener('pointerdown', unlock, { once: true });
+      addEventListener('keydown', unlock, { once: true });
       player = new Player(state.hero);
       const w = weaponStats('axe');
       player.hitbox.reach = w.reach;
       player.hitbox.damage = w.damage;
       ots.avoid = enemies.map((e) => e.root);
-      fx = new CombatFX(scene, camera, ots);
+      fx = new CombatFX(scene, camera, ots, audio);
       hud = new HUD();
       startWave(3);
     }

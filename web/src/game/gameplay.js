@@ -26,6 +26,7 @@ const _zero = new THREE.Vector3();
 // the enemy loop, and the first hit would otherwise corrupt the facing test
 // for every enemy after it.
 const _hurtV = new THREE.Vector3();
+const _knockV = new THREE.Vector3();
 const ARENA_R = 9.0;   // keep actors inside the dressed floor
 
 /* ------------------------------- input ------------------------------- */
@@ -70,6 +71,7 @@ export class Actor {
     this.maxHp = this.hp;
     this.speed = opts.speed ?? 3.2;
     this.radius = opts.radius ?? 0.42;
+    this.mass = opts.mass ?? 1.0;
     this.dead = false;
     this.vel = new THREE.Vector3();
     this.face = 0;              // yaw
@@ -79,10 +81,19 @@ export class Actor {
     this._baseY = root.position.y;
   }
 
-  hurt(amount, fromDir) {
+  /**
+   * @param impulse metres/sec of knockback along `fromDir`. Weight matters:
+   *   the same blow shoves a light draugr further than a heavy one, which is
+   *   most of what communicates that the fighters have different mass.
+   */
+  hurt(amount, fromDir, impulse = 0) {
     if (this.dead) return false;
     this.hp -= amount;
     this._flash = 1;
+    if (impulse > 0) {
+      const dir = _knockV.copy(fromDir).setY(0).normalize();
+      this.vel.addScaledVector(dir, impulse / (this.mass ?? 1));
+    }
     if (this.anim) {
       const local = _hurtV.copy(fromDir).setY(0).normalize()
         .applyAxisAngle(UP, -this.root.rotation.y);
@@ -113,11 +124,48 @@ export class Actor {
   }
 }
 
+/**
+ * Resolve body overlap between every pair of actors.
+ *
+ * Without this the player walks straight through the horde and enemies stack
+ * inside one another — the single most immersion-breaking thing in the build,
+ * and the reason a crowd never felt like a crowd. Mass-weighted so the heavy
+ * fighters shove and the light ones get shoved, which is most of what makes
+ * body contact read as weight rather than as a soft repulsion field.
+ */
+const _sepA = new THREE.Vector3();
+export function resolveBodies(actors, dt) {
+  for (let i = 0; i < actors.length; i++) {
+    const a = actors[i];
+    if (a.dead) continue;
+    for (let j = i + 1; j < actors.length; j++) {
+      const b = actors[j];
+      if (b.dead) continue;
+      const d = _sepA.copy(b.root.position).sub(a.root.position);
+      d.y = 0;
+      const dist = d.length();
+      const minD = a.radius + b.radius;
+      if (dist >= minD || dist < 1e-5) continue;
+      const push = (minD - dist) / dist;
+      // Heavier actor moves less. Player mass is deliberately high so the
+      // hero can wade into a pack rather than being swept around by it.
+      const ma = a.mass ?? 1, mb = b.mass ?? 1;
+      const total = ma + mb;
+      a.root.position.addScaledVector(d, -push * (mb / total));
+      b.root.position.addScaledVector(d, push * (ma / total));
+      // Transfer a little velocity so a shove has follow-through.
+      const k = Math.min(1, dt * 12);
+      a.vel.addScaledVector(d, -push * (mb / total) * k * 8);
+      b.vel.addScaledVector(d, push * (ma / total) * k * 8);
+    }
+  }
+}
+
 /* ------------------------------- player ------------------------------ */
 
 export class Player extends Actor {
   constructor(root) {
-    super(root, { hp: 200, speed: 3.4, radius: 0.45 });
+    super(root, { hp: 200, speed: 3.4, radius: 0.45, mass: 3.2 });
     this.state = 'idle';
     this.t = 0;
     this.combo = 0;
@@ -212,6 +260,17 @@ export class Player extends Actor {
     this.clampToArena();
     this.root.rotation.y = this.face + Math.PI;
 
+    // Footsteps fire off the animator's stride phase, so they land on the
+    // planted foot rather than on an independent timer that drifts out of sync.
+    if (this.anim && this.anim.ok) {
+      const ph = this.anim.phase;
+      const step = Math.floor(ph / Math.PI);
+      if (step !== this._lastStep && this.vel.lengthSq() > 1.2) {
+        this._lastStep = step;
+        fx.audio?.footstep(Math.min(1, this.vel.length() / 3.4));
+      }
+    }
+
     // Body motion is skeletal now; the root only carries yaw.
     const dur = this.combo === 2 ? 0.62 : 0.44;
     this.anim?.update(dt, this.vel.length(),
@@ -232,13 +291,18 @@ export class Player extends Actor {
       if (dist > this.hitbox.reach + e.radius) continue;
       if (to.normalize().dot(f) < Math.cos(this.hitbox.arc * 0.5)) continue;
       const dmg = this.hitbox.damage * (this.combo === 2 ? 1.8 : 1);
-      e.hurt(dmg, to);
-      e.stagger = 0.42;
+      // The finisher launches; the light hits nudge. A hit that does not move
+      // the target reads as a decal rather than as force.
+      const impulse = this.combo === 2 ? 9.5 : 3.2;
+      e.hurt(dmg, to, impulse);
+      e.stagger = this.combo === 2 ? 0.85 : 0.42;
       hit++;
       this.rage = Math.min(100, this.rage + 8);
+      if (e.dead) fx.audio?.death();
       fx.impact(_v3.copy(e.root.position).setY(1.15), this.combo === 2 ? 1 : 0.62);
     }
     fx.swing(_v3.copy(origin).addScaledVector(f, 1.2).setY(1.25), this.combo);
+    fx.audio?.whoosh(this.combo === 2 ? 1.3 : 1.0);
     if (hit === 0) fx.whiff();
   }
 }
@@ -247,11 +311,14 @@ export class Player extends Actor {
 
 export class Zombie extends Actor {
   constructor(root) {
-    super(root, { hp: 100, speed: 1.55, radius: 0.42 });
+    super(root, { hp: 100, speed: 1.55, radius: 0.42, mass: 1.0 });
     this.stagger = 0;
     this.attackCd = 1.2 + Math.random();
     this.state = 'idle';
     this.telegraph = 0;
+    this.hasToken = false;
+    this.ringTarget = null;
+    this.director = null;
     this._t = Math.random() * 10;
     // Silhouette variety: a pack of identical models at identical scale merges
     // into one mass at combat distance. ART_BIBLE §9.
@@ -276,6 +343,30 @@ export class Zombie extends Actor {
 
     if (this.stagger > 0) {
       this.vel.multiplyScalar(Math.exp(-10 * dt));
+    } else if (!this.hasToken && this.ringTarget) {
+      // No token: hold a slot on the ring and face the player. Circling rather
+      // than crowding is what makes the pack readable and gives the player
+      // room to actually use the parry and dodge windows.
+      const toRing = _v2.copy(this.ringTarget).sub(this.root.position);
+      toRing.y = 0;
+      const rd = toRing.length();
+      if (rd > 0.35) {
+        toRing.normalize();
+        const sep = _v3.set(0, 0, 0);
+        for (const o of others) {
+          if (o === this || o.dead) continue;
+          const off = _v4.copy(this.root.position).sub(o.root.position); off.y = 0;
+          const l = off.length();
+          if (l < 1.9 && l > 1e-3) sep.add(off.multiplyScalar((1.9 - l) / l));
+        }
+        toRing.addScaledVector(sep, 0.7).normalize();
+        const gait = 0.62 + 0.30 * Math.max(0, Math.sin(this._t * 3.1));
+        this.vel.lerp(toRing.multiplyScalar(this.speed * 0.78 * gait),
+          1 - Math.exp(-7 * dt));
+      } else {
+        this.vel.multiplyScalar(Math.exp(-9 * dt));
+      }
+      this.state = rd > 0.35 ? 'walk' : 'idle';
     } else if (dist > 1.5) {
       const d = to.normalize();
       // Separation so the pack doesn't collapse into one silhouette.
@@ -293,7 +384,7 @@ export class Zombie extends Actor {
       this.state = 'walk';
     } else {
       this.vel.multiplyScalar(Math.exp(-12 * dt));
-      if (this.attackCd <= 0) {
+      if (this.attackCd <= 0 && this.hasToken) {
         this.attackCd = 1.6 + Math.random() * 1.2;
         this.state = 'attack';
         this._swingAt = 0.42;
@@ -318,13 +409,16 @@ export class Zombie extends Actor {
             player.hurt(3, from);
             fx.blocked(_v2.copy(player.root.position).setY(1.2));
           } else {
-            player.hurt(12, from);
+            player.hurt(12, from, 2.4);
             fx.playerHit();
           }
         }
         this._swingAt = -1;
       }
-      if (this._swingAt < -0.35) this.state = 'idle';
+      if (this._swingAt < -0.35) {
+        this.state = 'idle';
+        if (this.hasToken && this.director) this.director.release(this);
+      }
     }
 
     this.root.position.addScaledVector(this.vel, dt);
