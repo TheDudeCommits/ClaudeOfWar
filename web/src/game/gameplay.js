@@ -10,12 +10,33 @@ import { Animator, HERO_ANIM, ZOMBIE_ANIM } from '../anim/procedural.js';
  * hands that animator a speed, an attack phase and a death progress.
  */
 
+// Turn rates. Falling with speed is what separates a body from a turret.
+const YAW_RATE_REST = 7.3;      // rad/s  (~420 deg/s) standing
+const YAW_RATE_SPRINT = 2.8;    // rad/s  (~160 deg/s) at top speed
+const PIVOT_ANGLE = 1.92;       // rad, ~110 deg of demanded turn
+const PIVOT_MIN_SPEED = 1.8;    // m/s below which a turn is just a turn
+const PIVOT_TIME = 0.26;        // s
+const PIVOT_YAW_BOOST = 1.9;    // the hips DO come round fast, once planted
+const PIVOT_BRAKE = 16.0;       // m/s^2 -- a pivot dumps speed
+const ACCEL = 8.0;              // m/s^2 -> ~0.35s to top speed
+const DECEL = 12.0;             // m/s^2 on release
+const LATERAL_GRIP = 5.0;       // 1/s; low on purpose, so turns scrub speed
+
+/** Shortest signed angle into (-pi, pi]. */
+function wrapPi(a) {
+  while (a > Math.PI) a -= Math.PI * 2;
+  while (a < -Math.PI) a += Math.PI * 2;
+  return a;
+}
+
 const UP = new THREE.Vector3(0, 1, 0);
 
 // Scratch vectors. The critic measured real combat at ~29ms/frame with only
 // ~2.6ms of that on the GPU, plus 200-790ms stalls — i.e. the game was
 // CPU-bound and GC-bound, not fill-rate bound. Per-enemy-per-frame Vector3
 // allocation in these hot paths was the source; everything below reuses.
+const _fwd = new THREE.Vector3();
+const _lat = new THREE.Vector3();
 const _v1 = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
 const _v3 = new THREE.Vector3();
@@ -70,6 +91,12 @@ export class Actor {
     this.hp = opts.hp ?? 100;
     this.maxHp = this.hp;
     this.speed = opts.speed ?? 3.2;
+    // Rotational/linear inertia state. `face` is now what the body IS doing;
+    // `faceTarget` is what the input asked for. They are not the same thing.
+    this.faceTarget = this.face || 0;
+    this.pivotT = 0;
+    this.yawRate = 0;
+    this.accel = 0;
     this.radius = opts.radius ?? 0.42;
     this.mass = opts.mass ?? 1.0;
     this.dead = false;
@@ -215,15 +242,73 @@ export class Player extends Actor {
       const dir = _v3.set(0, 0, 0)
         .addScaledVector(right, m.x).addScaledVector(fwd, -m.y);
       const moving = dir.lengthSq() > 1e-4;
-      if (moving) {
-        dir.normalize();
-        const sp = this.speed * (input.block ? 0.4 : 1);
-        this.vel.lerp(dir.multiplyScalar(sp), 1 - Math.exp(-14 * dt));
-        this.face = Math.atan2(dir.x, dir.z);
-      } else {
-        this.vel.lerp(_zero, 1 - Math.exp(-18 * dt));
+      const sp = this.speed * (input.block ? 0.4 : 1);
+
+      // ---- rotational inertia ----
+      //
+      // `this.face = atan2(dir.x, dir.z)` ASSIGNED the facing straight from
+      // input. Measured first-input yaw rate: -1722 deg/s, i.e. ~150 degrees
+      // inside a single frame. Nothing with mass turns like that, and it is the
+      // reason the character carved like a car rather than pivoting like a
+      // body. Facing is now a target the actual facing chases at a finite rate
+      // that FALLS with speed: quick on the spot, ponderous at a sprint.
+      if (moving) this.faceTarget = Math.atan2(dir.x, dir.z);
+      let dyaw = wrapPi(this.faceTarget - this.face);
+      const speedNow = this.vel.length();
+      const t01 = THREE.MathUtils.clamp(speedNow / Math.max(0.001, this.speed), 0, 1);
+      const maxYaw = THREE.MathUtils.lerp(YAW_RATE_REST, YAW_RATE_SPRINT, t01);
+
+      // A reversal at speed is a PIVOT, not a turn: plant, swing the hips
+      // around, push off again. Entering it costs most of the speed, which is
+      // exactly the cost the old lerp refused to pay -- through a 180 the
+      // measured speed held 2.654 -> 2.681 m/s and at one point ACCELERATED.
+      if (this.pivotT > 0) this.pivotT -= dt;
+      else if (moving && speedNow > PIVOT_MIN_SPEED && Math.abs(dyaw) > PIVOT_ANGLE) {
+        this.pivotT = PIVOT_TIME;
       }
-      this.state = moving ? 'run' : 'idle';
+      const pivoting = this.pivotT > 0;
+      const yawStep = maxYaw * (pivoting ? PIVOT_YAW_BOOST : 1) * dt;
+      const applied = THREE.MathUtils.clamp(dyaw, -yawStep, yawStep);
+      this.face = wrapPi(this.face + applied);
+      this.yawRate = dt > 0 ? applied / dt : 0;
+
+      // ---- linear inertia ----
+      //
+      // The old code lerped the whole velocity VECTOR toward inputDir*maxSpeed.
+      // Both have the same length, so a direction change merely ROTATED the
+      // velocity and cost nothing. Split it instead: thrust acts along the
+      // facing at a finite rate, and lateral velocity is bled off by a
+      // deliberately WEAK grip term so turning scrubs speed the way it must.
+      const prevSpeed = speedNow;
+      _fwd.set(Math.sin(this.face), 0, Math.cos(this.face));
+      let along = this.vel.dot(_fwd);
+      _lat.copy(this.vel).addScaledVector(_fwd, -along);
+
+      if (moving && !pivoting) {
+        // Thrust only to the extent we are already pointing where we want to
+        // go; sprinting sideways out of a turn should not be possible.
+        const aim = Math.max(0, Math.cos(dyaw));
+        along = Math.min(sp, along + ACCEL * aim * dt);
+      } else {
+        const brake = pivoting ? PIVOT_BRAKE : DECEL;
+        along = Math.max(0, along - brake * dt);
+      }
+      // Weak grip: lateral speed decays, but slowly enough to read as a skid.
+      _lat.multiplyScalar(Math.exp(-LATERAL_GRIP * dt));
+      this.vel.copy(_lat).addScaledVector(_fwd, along);
+      // Along-facing and lateral components can sum past the cap on the way out
+      // of a turn: measured 3.01 m/s against a 2.76 top speed, which would
+      // desync the locomotion clip that top speed exists to match.
+      if (this.vel.lengthSq() > sp * sp) this.vel.setLength(sp);
+
+      // Clamp to what LOCOMOTION can produce. Raw frame-to-frame acceleration
+      // measured -403 m/s^2: collision clamps and crowd separation dump the
+      // whole velocity in one frame, and feeding those spikes to the lean made
+      // the pose twitch on contact instead of reading as weight. The character
+      // never accelerates itself harder than the brake, so bound it there.
+      const rawA = dt > 0 ? (this.vel.length() - prevSpeed) / dt : 0;
+      this.accel = THREE.MathUtils.clamp(rawA, -PIVOT_BRAKE, ACCEL);
+      this.state = pivoting ? 'pivot' : (speedNow > 0.15 || moving ? 'run' : 'idle');
 
       if (input.consumeDodge() && this.stamina > 25) {
         this.state = 'dodge'; this.t = 0; this.stamina -= 25;
@@ -304,7 +389,13 @@ export class Player extends Actor {
       this.state === 'attack'
         ? { active: true, k: Math.min(1, this.t / dur), combo: this.combo }
         : null,
-      0);
+      0,
+      // The animator used to receive ONE scalar (speed) and pick between three
+      // clips by threshold. Because the old controller held speed nearly
+      // constant through every turn, start and stop, that scalar barely moved
+      // and there was no signal to animate a transition WITH, even in
+      // principle. Hand it the dynamics too.
+      { yawRate: this.yawRate, accel: this.accel, pivot: this.state === 'pivot' });
     // NOTE: a two-bone foot-lock IK was tried here and removed. It wrote bad
     // quaternions that flung the legs — measured foot world-Y went from 0.58m
     // to 1.62m, i.e. above the hip. Speed-matched stride (anim/procedural.js)
@@ -474,7 +565,13 @@ export class Zombie extends Actor {
       this.state === 'attack'
         ? { active: true, k: Math.max(0, 1 - Math.max(0, this._swingAt) / 0.42), combo: 0 }
         : null,
-      0);
+      0,
+      // The animator used to receive ONE scalar (speed) and pick between three
+      // clips by threshold. Because the old controller held speed nearly
+      // constant through every turn, start and stop, that scalar barely moved
+      // and there was no signal to animate a transition WITH, even in
+      // principle. Hand it the dynamics too.
+      { yawRate: this.yawRate, accel: this.accel, pivot: this.state === 'pivot' });
 
   }
 }

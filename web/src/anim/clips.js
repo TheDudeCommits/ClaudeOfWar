@@ -131,6 +131,8 @@ export class ClipAnimator {
     this.hitDir = 0;
     this._speed = 0;
     this._blend = {};
+    this._lean = 0;
+    this._bank = 0;
     this.armClose = opts.armClose ?? 0.62;   // radians of inward roll
     this.elbowBend = opts.elbowBend ?? 0.34;
     // Foot lock state: the world point each foot is pinned to while in stance.
@@ -187,8 +189,13 @@ export class ClipAnimator {
    * @param attack  {active,k,combo} or null
    * @param deadT   0..1
    */
-  update(dt, speed, attack, deadT) {
+  update(dt, speed, attack, deadT, dyn) {
     if (!this.ok) return;
+    // Smooth the dynamics before posing from them: raw per-frame accel is
+    // spiky and would read as a twitch rather than as weight.
+    const k = 1 - Math.exp(-9 * dt);
+    this._lean += (((dyn && dyn.accel) || 0) - this._lean) * k;
+    this._bank += (((dyn && dyn.yawRate) || 0) - this._bank) * k;
     this._speed += (speed - this._speed) * (1 - Math.exp(-14 * dt));
     const sp = this._speed;
 
@@ -232,6 +239,23 @@ export class ClipAnimator {
     // ran like a scarecrow. Applied here rather than in the clip because this
     // path uses the bind-pose-derived rotation axes, which are verified; the
     // Blender-side arm authoring fights whatever axes the exporter chose.
+    // ---- weight from acceleration and turn rate ----
+    //
+    // The torso was dead plumb-vertical through a full-speed carve: the 15-21
+    // degrees of lean that existed was baked into the run clip and tracked
+    // SPEED, not acceleration (measured corr(accel, lean) = -0.19). A body
+    // leans into what it is doing to itself. Pitch back under braking, forward
+    // under drive, and bank into the turn -- all additive over the clip.
+    const lean = THREE.MathUtils.clamp(this._lean * 0.030, -0.26, 0.26);
+    const bank = THREE.MathUtils.clamp(this._bank * 0.055, -0.22, 0.22);
+    if (lean || bank) {
+      // Split across the spine so it reads as a body bending, not a plank
+      // hinging at the hips.
+      this.rig.addRot('Hips', lean * 0.35, 0, bank * 0.30);
+      this.rig.addRot('Spine', lean * 0.40, 0, bank * 0.40);
+      this.rig.addRot('Spine01', lean * 0.25, 0, bank * 0.30);
+    }
+
     const close = this.armClose;
     if (close) {
       this.rig.addRot('LeftArm', 0, 0, -close);
