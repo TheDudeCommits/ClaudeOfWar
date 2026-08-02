@@ -183,11 +183,11 @@ export const TOD = {
     sun: { color: 0xffd8a2, intensity: 4.9, elevation: 20, azimuth: 205 },
     // Less saturated blue: highlights measured COLD (-0.057) where the
     // reference is warm (+0.028), and a heavily blue fill is why.
-    fill: { color: 0x6d7e93, intensity: 0.12 },
+    fill: { color: 0x6d7e93, intensity: 0.30 },
     rim: { color: 0xbcd4f0, intensity: 0.0 },
     sky: { turbidity: 7.5, rayleigh: 2.6, mieCoefficient: 0.006, mieG: 0.72 },
     fog: { color: 0x8fa4b8, density: 0.030 },
-    env: 0.22,
+    env: 0.46,
     grade: {
       shadowTint: new THREE.Vector3(-0.034, -0.008, 0.070),
       highTint: new THREE.Vector3(0.150, 0.066, -0.085),

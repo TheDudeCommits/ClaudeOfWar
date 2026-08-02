@@ -6,11 +6,29 @@ import { injectHair, injectSkin, injectBody, injectZombie } from './shading.js';
 
 const ASSETS = asset('assets/chars');
 
+const _aoCache = new Map();
+/**
+ * Baked self-occlusion (tools/bake_char_maps.py). Screen-space AO resolves
+ * object-vs-object contact only; the occlusion inside an armpit, a neck, a
+ * fist or a cloth fold has to come from the mesh. Without this the characters
+ * had no aoMap at all while every arena material carried a full ORM set, and
+ * the measured result was a torso that never went darker than luma 0.33.
+ */
+function aoMap(name) {
+  if (!_aoCache.has(name)) {
+    const t = new THREE.TextureLoader().load(`${ASSETS}/${name}_ao.webp`);
+    t.channel = 0;           // the bake shares UV0 with the albedo atlas
+    t.flipY = false;         // glTF convention
+    _aoCache.set(name, t);
+  }
+  return _aoCache.get(name);
+}
+
 /* ------------------------------------------------------------------ tuning */
 
 export const HERO_TUNING = {
   hair: {
-    color: 0xb6aa9c,          // pulls the atlas' near-white down to ~0.62 grey
+    color: 0x8d8478,          // pulls the atlas' near-white down to ~0.62 grey
     root: 0x53442f,           // warm dark for roots / interior
     roughness: 0.40,
     anisotropy: 0.9,
@@ -18,7 +36,7 @@ export const HERO_TUNING = {
     sheenColor: 0xe3d3bc,
     sheenRoughness: 0.35,
     specularIntensity: 0.85,
-    envMapIntensity: 1.0,
+    envMapIntensity: 0.45,
     strands: 190,             // strands around the body axis
     clumpScale: 1 / 6,        // 6 strands per lock
     clumpNormal: 0.30,
@@ -35,7 +53,7 @@ export const HERO_TUNING = {
   skin: {
     // Real skin diffuse albedo lands ~0.30–0.50 linear. The generated atlas
     // paints it near 0.9, which is the whole reason it reads as pink vinyl.
-    color: 0xbcc0c4,
+    color: 0x8e9296,
     roughness: 0.50,
     sssColor: 0xc4544a,       // ART_BIBLE §7
     sssStrength: 0.34,
@@ -209,6 +227,7 @@ export function setupHeroMaterials(root, tuning = HERO_TUNING) {
     uAlbedoGamma: { value: t.body.albedoGamma },
   };
   const body = new THREE.MeshPhysicalMaterial({
+    color: 0x9b9793,
     ...common,
     name: 'hero_body',
     color: t.body.color,
@@ -219,6 +238,8 @@ export function setupHeroMaterials(root, tuning = HERO_TUNING) {
     sheenRoughness: 0.8,
     sheenColor: new THREE.Color(0x9fa8b4),
     envMapIntensity: t.body.envMapIntensity,
+      aoMap: aoMap('hero_ashvald'),
+    aoMapIntensity: 1.0,
   });
   injectBody(body, bodyU);
   body.userData.uniforms = bodyU;
@@ -251,6 +272,8 @@ export function setupHeroMaterials(root, tuning = HERO_TUNING) {
     sheenRoughness: t.hair.sheenRoughness,
     specularIntensity: t.hair.specularIntensity,
     envMapIntensity: t.hair.envMapIntensity,
+      aoMap: aoMap('hero_ashvald'),
+    aoMapIntensity: 1.0,
   });
   injectHair(hair, hairU);
   hair.userData.uniforms = hairU;
@@ -275,6 +298,8 @@ export function setupHeroMaterials(root, tuning = HERO_TUNING) {
     sheenRoughness: 0.85,
     specularIntensity: t.skin.specularIntensity,
     envMapIntensity: t.skin.envMapIntensity,
+      aoMap: aoMap('hero_ashvald'),
+    aoMapIntensity: 1.0,
   });
   injectSkin(skin, skinU);
   skin.userData.uniforms = skinU;
@@ -306,17 +331,20 @@ export function setupHeroMaterials(root, tuning = HERO_TUNING) {
 /* ------------------------------------------------------------------ zombie */
 
 export const ZOMBIE_TUNING = {
-  roughLow: 0.30,     // wet, greasy exposed flesh
-  roughHigh: 0.92,    // dry bone, rag, desiccated hide
+  // ART_BIBLE §9 wants wet flesh, but 0.30 under a low backlit sun mirrors a
+  // specular rim across the whole torso and clipped 3.7% of it to white. The
+  // clipping was specular, not diffuse — darkening albedo did nothing.
+  roughLow: 0.36,     // wet, greasy exposed flesh
+  roughHigh: 0.94,    // dry bone, rag, desiccated hide
   wear: 0.45,
   albedoFloor: 0.050,
-  albedoGamma: 0.80,
+  albedoGamma: 1.12,  // <1 lifts midtones; the atlas is already bright
   grainRepeat: 52,
   grainScale: 0.95,
   sssColor: 0x6f7a48,
   sssStrength: 0.45,
   sssWrap: 0.30,
-  envMapIntensity: 0.85,
+  envMapIntensity: 0.42,
   eyeGlow: 0x63d2ff,
   eyeSeeds: [[-0.055, 1.62], [0.055, 1.62]],
 };
@@ -359,6 +387,8 @@ export function setupZombieMaterials(root, tuning = ZOMBIE_TUNING) {
     sheenRoughness: 0.9,
     sheenColor: new THREE.Color(0x8fa07a),
     envMapIntensity: tuning.envMapIntensity,
+      aoMap: aoMap('zombie_draugr'),
+    aoMapIntensity: 1.0,
   });
   injectZombie(mat, u);
   mat.userData.uniforms = u;

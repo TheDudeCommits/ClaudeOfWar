@@ -53,6 +53,16 @@ const state = { hero: null, zombie: null, zombieProto: null, arena: new THREE.Gr
 const enemies = [];
 let player = null, input = null, fx = null, hud = null, wave = 1;
 
+/** Scale envMapIntensity on every material under a character root. */
+function dampCharacterAmbient(root, k) {
+  root.traverse((o) => {
+    const ms = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []);
+    for (const m of ms) {
+      if (m && typeof m.envMapIntensity === 'number') m.envMapIntensity *= k;
+    }
+  });
+}
+
 function spawnZombie(x, z) {
   // SkeletonUtils.clone rather than Object3D.clone: a plain clone shares the
   // skeleton, so every copy would animate as one.
@@ -105,6 +115,12 @@ async function loadChars() {
   // one material covering everything, so without this the hair renders as the
   // flat near-white paint the atlas actually contains.
   setupHeroMaterials(state.hero);
+  // World ambient and character ambient are separate problems. The scene needs
+  // enough indirect light that the frame isn't 10% functionally black; the
+  // characters need much less of it or their shadow side never goes dark.
+  // Applied here because it is the one place guaranteed to reach every
+  // material the character setup produced.
+  dampCharacterAmbient(state.hero, 0.34);
   scene.add(state.hero);
   // The hero was empty-handed, which is a conspicuous miss for a God of War
   // alike. Weapon choice also drives reach and damage.
@@ -116,6 +132,7 @@ async function loadChars() {
     if (o.isMesh || o.isSkinnedMesh) { o.castShadow = true; o.receiveShadow = true; }
   });
   setupZombieMaterials(state.zombieProto);
+  dampCharacterAmbient(state.zombieProto, 0.34);
   // `state.zombie` stays as the first spawn so existing shot specs keep working.
   state.zombie = spawnZombie(-1.6, -4.2);
   ots.target = state.hero;

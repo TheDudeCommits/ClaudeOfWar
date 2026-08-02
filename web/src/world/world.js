@@ -45,7 +45,10 @@ export class World {
     // Two omnidirectional fill terms (this + scene.environmentIntensity) were
     // lifting every character's shadow side off the floor of the histogram: our
     // draugr torso measured luma p5 0.329 against the reference's 0.059.
-    this.fill = new THREE.HemisphereLight(0x9aa9b8, 0x332c24, 0.12);
+    // World ambient is global; character contrast is handled per-material with
+    // envMapIntensity instead. Cutting this to 0.12 fixed the characters but
+    // pushed 10.7% of the FRAME below luma 0.03 (reference: 0.15%).
+    this.fill = new THREE.HemisphereLight(0x9aa9b8, 0x332c24, 0.30);
     scene.add(this.fill);
 
     // Rim separation is done per-material with a Fresnel mask in the character

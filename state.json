@@ -5,19 +5,14 @@
       "id": "deploy",
       "name": "Playable Build (live)",
       "status": "passed",
-      "round": 30,
+      "round": 36,
       "gap": null,
       "win_note": "Live at https://thedudecommits.github.io/ClaudeOfWar/ \u2014 verified loading with zero asset failures and responding to input.",
       "shots": [
         {
-          "path": "shots/round30/arena_ots.png",
-          "label": "r30 \u00b7 character shadow side + AA restored",
-          "round": 30
-        },
-        {
-          "path": "shots/round27/arena_ots.png",
-          "label": "r27 \u00b7 before character lighting fix",
-          "round": 27
+          "path": "shots/round36/arena_ots.png",
+          "label": "r36 \u00b7 baked char AO, ambient split, MSAA",
+          "round": 36
         }
       ],
       "brief": "Shippable web build with quality settings.",
@@ -48,19 +43,14 @@
       "id": "perf",
       "name": "Performance (30 FPS floor)",
       "status": "passed",
-      "round": 30,
+      "round": 36,
       "gap": null,
       "win_note": "Real combat 59.9 FPS p50 / max 24ms, from 28.4ms p50 / max 790ms. Both presets clear 30 FPS in combat with MSAA restored.",
       "shots": [
         {
-          "path": "shots/round30/arena_ots.png",
-          "label": "r30 \u00b7 character shadow side + AA restored",
-          "round": 30
-        },
-        {
-          "path": "shots/round27/arena_ots.png",
-          "label": "r27 \u00b7 before character lighting fix",
-          "round": 27
+          "path": "shots/round36/arena_ots.png",
+          "label": "r36 \u00b7 baked char AO, ambient split, MSAA",
+          "round": 36
         }
       ],
       "brief": ">=30 FPS at 1920x1080 on a fanless MacBook Air M2 8GB.",
@@ -111,18 +101,13 @@
       "id": "render-stack",
       "name": "Render & Post Stack",
       "status": "review",
-      "round": 30,
-      "gap": "Sky is still a blurred PMREM cube with two white blobs where the sun hits cube seams \u2014 no cloud structure. Frame is 2-3 hue bins vs the reference 5.",
+      "round": 36,
+      "gap": "Sky is still a blurred PMREM cube with two white blobs at cube seams. Frame occupies 2-3 hue bins vs the reference 5.",
       "shots": [
         {
-          "path": "shots/round30/arena_ots.png",
-          "label": "r30 \u00b7 character shadow side + AA restored",
-          "round": 30
-        },
-        {
-          "path": "shots/round27/arena_ots.png",
-          "label": "r27 \u00b7 before character lighting fix",
-          "round": 27
+          "path": "shots/round36/arena_ots.png",
+          "label": "r36 \u00b7 baked char AO, ambient split, MSAA",
+          "round": 36
         }
       ],
       "history": [
@@ -209,18 +194,13 @@
       "id": "camera-rig",
       "name": "Camera Rig & Framing",
       "status": "review",
-      "round": 30,
+      "round": 36,
       "gap": "Occlusion added but untested under real combat crowding.",
       "shots": [
         {
-          "path": "shots/round30/arena_ots.png",
-          "label": "r30 \u00b7 character shadow side + AA restored",
-          "round": 30
-        },
-        {
-          "path": "shots/round27/arena_ots.png",
-          "label": "r27 \u00b7 before character lighting fix",
-          "round": 27
+          "path": "shots/round36/arena_ots.png",
+          "label": "r36 \u00b7 baked char AO, ambient split, MSAA",
+          "round": 36
         }
       ],
       "history": [
@@ -251,18 +231,13 @@
       "id": "environment",
       "name": "Environment & Level Art",
       "status": "review",
-      "round": 30,
+      "round": 36,
       "gap": "Wet zones still throw a large blown specular field across the centre-right of the floor under the backlit sun.",
       "shots": [
         {
-          "path": "shots/round30/arena_ots.png",
-          "label": "r30 \u00b7 character shadow side + AA restored",
-          "round": 30
-        },
-        {
-          "path": "shots/round27/arena_ots.png",
-          "label": "r27 \u00b7 before character lighting fix",
-          "round": 27
+          "path": "shots/round36/arena_ots.png",
+          "label": "r36 \u00b7 baked char AO, ambient split, MSAA",
+          "round": 36
         }
       ],
       "history": [
@@ -293,18 +268,13 @@
       "id": "lighting",
       "name": "Lighting & Atmosphere",
       "status": "review",
-      "round": 30,
+      "round": 36,
       "gap": "Open floor still takes few cast shadows under the backlit sun.",
       "shots": [
         {
-          "path": "shots/round30/arena_ots.png",
-          "label": "r30 \u00b7 character shadow side + AA restored",
-          "round": 30
-        },
-        {
-          "path": "shots/round27/arena_ots.png",
-          "label": "r27 \u00b7 before character lighting fix",
-          "round": 27
+          "path": "shots/round36/arena_ots.png",
+          "label": "r36 \u00b7 baked char AO, ambient split, MSAA",
+          "round": 36
         }
       ],
       "history": [
@@ -325,18 +295,13 @@
       "id": "hero",
       "name": "Hero Characters",
       "status": "review",
-      "round": 30,
-      "gap": "Characters have no aoMap and no roughness map, while all 11 arena materials carry a full ORM set. Hair has no normal map at all; cape is a flat quad.",
+      "round": 36,
+      "gap": "Hair is still opaque plates with no normal map; cape is a flat quad. Baked AO is wired but three only applies aoMap to INDIRECT light, so its effect is small at current ambient levels.",
       "shots": [
         {
-          "path": "shots/round30/arena_ots.png",
-          "label": "r30 \u00b7 character shadow side + AA restored",
-          "round": 30
-        },
-        {
-          "path": "shots/round27/arena_ots.png",
-          "label": "r27 \u00b7 before character lighting fix",
-          "round": 27
+          "path": "shots/round36/arena_ots.png",
+          "label": "r36 \u00b7 baked char AO, ambient split, MSAA",
+          "round": 36
         }
       ],
       "history": [
@@ -364,6 +329,16 @@
           "round": 30,
           "verdict": "FAIL",
           "note": "CRITIC: draugr torso luma p5 was 0.329 vs reference 0.059 with 5.7% clipped white \u2014 nothing on a character was ever dark. Cut hemisphere fill 0.38->0.12, env 0.48->0.22, removed the DirectionalLight \"rim\" (it lit the whole back hemisphere), AO radius 1.6->0.65. Torso p5 now 0.027."
+        },
+        {
+          "round": 31,
+          "verdict": "FAIL",
+          "note": "baked per-character AO in Blender (tools/bake_char_maps.py) and wired aoMap into all 4 character materials \u2014 they had none while all 11 arena materials had a full ORM set"
+        },
+        {
+          "round": 36,
+          "verdict": "FAIL",
+          "note": "CORRECTION: the \"5.7% clipped torso\" I chased for 4 rounds was a contaminated sample region \u2014 it included sunlit ground behind and between the draugr legs. Visual inspection shows the character is correctly dark and backlit. The residual clipping is ground specular."
         }
       ],
       "brief": "Anime-styled fighters rendered with photoreal PBR+SSS. Hair cards, cloth, eyes. Judged on close-up."
@@ -372,18 +347,13 @@
       "id": "zombies",
       "name": "Zombie Enemies",
       "status": "review",
-      "round": 30,
+      "round": 36,
       "gap": "Reads as a small green figure at distance; silhouette and material need work at combat range.",
       "shots": [
         {
-          "path": "shots/round30/arena_ots.png",
-          "label": "r30 \u00b7 character shadow side + AA restored",
-          "round": 30
-        },
-        {
-          "path": "shots/round27/arena_ots.png",
-          "label": "r27 \u00b7 before character lighting fix",
-          "round": 27
+          "path": "shots/round36/arena_ots.png",
+          "label": "r36 \u00b7 baked char AO, ambient split, MSAA",
+          "round": 36
         }
       ],
       "history": [
@@ -399,18 +369,13 @@
       "id": "animation",
       "name": "Animation & Physics",
       "status": "review",
-      "round": 30,
+      "round": 36,
       "gap": "Procedural skeletal animation now drives the rig, but it is authored not captured \u2014 no mocap nuance.",
       "shots": [
         {
-          "path": "shots/round30/arena_ots.png",
-          "label": "r30 \u00b7 character shadow side + AA restored",
-          "round": 30
-        },
-        {
-          "path": "shots/round27/arena_ots.png",
-          "label": "r27 \u00b7 before character lighting fix",
-          "round": 27
+          "path": "shots/round36/arena_ots.png",
+          "label": "r36 \u00b7 baked char AO, ambient split, MSAA",
+          "round": 36
         }
       ],
       "history": [
@@ -426,18 +391,13 @@
       "id": "combat",
       "name": "Combat Feel",
       "status": "review",
-      "round": 30,
+      "round": 36,
       "gap": "Procedural attack motion only \u2014 the character GLBs ship one clip each, so there are no real attack/hit/death animations.",
       "shots": [
         {
-          "path": "shots/round30/arena_ots.png",
-          "label": "r30 \u00b7 character shadow side + AA restored",
-          "round": 30
-        },
-        {
-          "path": "shots/round27/arena_ots.png",
-          "label": "r27 \u00b7 before character lighting fix",
-          "round": 27
+          "path": "shots/round36/arena_ots.png",
+          "label": "r36 \u00b7 baked char AO, ambient split, MSAA",
+          "round": 36
         }
       ],
       "history": [
@@ -458,18 +418,13 @@
       "id": "vfx",
       "name": "VFX & Impact",
       "status": "review",
-      "round": 30,
+      "round": 36,
       "gap": "Particles are live but sparse at combat range; no near-camera occluders yet.",
       "shots": [
         {
-          "path": "shots/round30/arena_ots.png",
-          "label": "r30 \u00b7 character shadow side + AA restored",
-          "round": 30
-        },
-        {
-          "path": "shots/round27/arena_ots.png",
-          "label": "r27 \u00b7 before character lighting fix",
-          "round": 27
+          "path": "shots/round36/arena_ots.png",
+          "label": "r36 \u00b7 baked char AO, ambient split, MSAA",
+          "round": 36
         }
       ],
       "history": [
@@ -490,18 +445,13 @@
       "id": "hud",
       "name": "HUD & UI",
       "status": "passed",
-      "round": 30,
+      "round": 36,
       "gap": null,
       "shots": [
         {
-          "path": "shots/round30/arena_ots.png",
-          "label": "r30 \u00b7 character shadow side + AA restored",
-          "round": 30
-        },
-        {
-          "path": "shots/round27/arena_ots.png",
-          "label": "r27 \u00b7 before character lighting fix",
-          "round": 27
+          "path": "shots/round36/arena_ots.png",
+          "label": "r36 \u00b7 baked char AO, ambient split, MSAA",
+          "round": 36
         }
       ],
       "history": [
@@ -518,18 +468,13 @@
       "id": "audio",
       "name": "Audio",
       "status": "queued",
-      "round": 30,
+      "round": 36,
       "gap": null,
       "shots": [
         {
-          "path": "shots/round30/arena_ots.png",
-          "label": "r30 \u00b7 character shadow side + AA restored",
-          "round": 30
-        },
-        {
-          "path": "shots/round27/arena_ots.png",
-          "label": "r27 \u00b7 before character lighting fix",
-          "round": 27
+          "path": "shots/round36/arena_ots.png",
+          "label": "r36 \u00b7 baked char AO, ambient split, MSAA",
+          "round": 36
         }
       ],
       "history": [],
