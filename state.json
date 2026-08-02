@@ -368,9 +368,9 @@
     {
       "id": "animation",
       "name": "Animation & Physics",
-      "status": "rejected",
-      "round": 38,
-      "gap": "DECISION PENDING: critic recommends abandoning procedural locomotion for retargeted Mixamo clips, keeping the procedural layer as additive-only (hit flinch, attack lean, idle breath). Rig is mixamorig-shaped so retarget is a name map.",
+      "status": "review",
+      "round": 39,
+      "gap": "Clip pipeline is in place and foot-slide p90 improved 8.42 -> 5.26 m/s, but the clip still does not plant (median 3.66 vs target ~0) and the authored ARM channels are not reading in-game \u2014 characters still run with the 43-degree A-pose arms splayed.",
       "shots": [
         {
           "path": "shots/round36/arena_ots.png",
@@ -403,6 +403,21 @@
           "round": 38,
           "verdict": "FAIL",
           "note": "constant -0.25 on the forearm popped discontinuously at both ends of every swing (13 m/s weapon-tip spike, 6x per combo). Enveloped."
+        },
+        {
+          "round": 39,
+          "verdict": "FAIL",
+          "note": "Mixamo unavailable (interactive download) and three ships no models, so clips are AUTHORED against our own rig in Blender instead of retargeted \u2014 no bone-mapping error. Foot trajectory drives Blender IK, baked to keyframes."
+        },
+        {
+          "round": 39,
+          "verdict": "FAIL",
+          "note": "ClipAnimator + AnimationMixer wired; procedural code demoted to an additive layer (hit flinch, attack lean) per the critic. metresPerCycle measured from the clip (0.643m) \u2014 a 1.0 fallback was itself causing slide."
+        },
+        {
+          "round": 39,
+          "verdict": "FAIL",
+          "note": "Arm/spine authoring added to the Blender script but the channels are not visibly applying at runtime. Unresolved."
         }
       ],
       "brief": "Locomotion, attack sets, directional hit reactions, foot IK, ragdoll, cloth."

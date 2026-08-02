@@ -19,6 +19,7 @@ THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
 THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
 THREE.Mesh.prototype.raycast = acceleratedRaycast;
 import { Input, Player, Zombie, resolveBodies } from './game/gameplay.js';
+import { ClipAnimator, measureCycleDistance } from './anim/clips.js';
 import { CombatFX } from './game/fx.js';
 import { CombatDirector } from './game/director.js';
 import { HUD } from './ui/hud.js';
@@ -121,6 +122,12 @@ async function loadChars() {
   // vertices against the albedo, then shades each properly. The mesh ships with
   // one material covering everything, so without this the hair renders as the
   // flat near-white paint the atlas actually contains.
+  // Baked clips authored against this exact rig (tools/gen_anims.py). The
+  // legs were solved from a foot trajectory by Blender's IK and baked, so foot
+  // planting is in the data rather than something the runtime fights for.
+  const anims = await load(asset('assets/chars/hero_anims.glb'));
+  state.clips = anims.animations || [];
+
   setupHeroMaterials(state.hero);
   // World ambient and character ambient are separate problems. The scene needs
   // enough indirect light that the frame isn't 10% functionally black; the
@@ -342,6 +349,11 @@ window.__COW = {
       addEventListener('pointerdown', unlock, { once: true });
       addEventListener('keydown', unlock, { once: true });
       player = new Player(state.hero);
+      if (state.clips.length) {
+        const dist = measureCycleDistance(state.hero, state.clips[0]);
+        player.anim = new ClipAnimator(state.hero, state.clips, { metresPerCycle: dist });
+        console.log('[anim] clip cycle distance', dist.toFixed(3), 'm');
+      }
       const w = weaponStats('axe');
       player.hitbox.reach = w.reach;
       player.hitbox.damage = w.damage;
