@@ -43,8 +43,8 @@ footer{padding:26px 28px;color:#5d646e;font-size:11.5px}
 <span class=pill style='border-color:#a855f744;color:#a855f7'>Lighting &amp; Atmosphere · r36</span>
 <span class=pill style='border-color:#a855f744;color:#a855f7'>Hero Characters · r36</span>
 <span class=pill style='border-color:#a855f744;color:#a855f7'>Zombie Enemies · r36</span>
-<span class=pill style='border-color:#a855f744;color:#a855f7'>Animation &amp; Physics · r37</span>
-<span class=pill style='border-color:#a855f744;color:#a855f7'>Combat Feel · r37</span>
+<span class=pill style='border-color:#ef444444;color:#ef4444'>Animation &amp; Physics · r38</span>
+<span class=pill style='border-color:#a855f744;color:#a855f7'>Combat Feel · r38</span>
 <span class=pill style='border-color:#a855f744;color:#a855f7'>VFX &amp; Impact · r36</span>
 <span class=pill style='border-color:#22c55e44;color:#22c55e'>HUD &amp; UI · r36</span>
 <span class=pill style='border-color:#a855f744;color:#a855f7'>Audio · r37</span>
@@ -157,21 +157,29 @@ footer{padding:26px 28px;color:#5d646e;font-size:11.5px}
 <div class=hr><span class=hn>r6</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>draugr GLB ported and lit</span></div>
 </div>
 </div></div>
-<div class=piece><div class=ph><span class=dot style='background:#a855f7'></span><span class=pn>Animation &amp; Physics</span><span class=st style='color:#a855f7'>in review</span><span class=rd>round 37</span></div><div class=pb>
-<div class=gap><b>Biggest remaining gap:</b> Footsteps now sync to the stride phase, but there is still no root-motion or IK ground adaptation.</div>
+<div class=piece><div class=ph><span class=dot style='background:#ef4444'></span><span class=pn>Animation &amp; Physics</span><span class=st style='color:#ef4444'>sent back</span><span class=rd>round 38</span></div><div class=pb>
+<div class=gap><b>Biggest remaining gap:</b> DECISION PENDING: critic recommends abandoning procedural locomotion for retargeted Mixamo clips, keeping the procedural layer as additive-only (hit flinch, attack lean, idle breath). Rig is mixamorig-shaped so retarget is a name map.</div>
 <div class=shots>
 <div class=shot><a href='../shots/round36/arena_ots.png' target=_blank><img src='../shots/round36/arena_ots.png' loading=lazy></a><div class=cap><span>r36 · baked char AO, ambient split, MSAA</span><span>r36</span></div></div>
 </div>
 <div class=hist>
+<div class=hr><span class=hn>r38</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>constant -0.25 on the forearm popped discontinuously at both ends of every swing (13 m/s weapon-tip spike, 6x per combo). Enveloped.</span></div>
+<div class=hr><span class=hn>r38</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>animator was fed intent velocity not realized displacement — 85% of pinned frames ran a full stride cycle going nowhere. Now fed realized delta.</span></div>
+<div class=hr><span class=hn>r38</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>velocity changes were single-frame step functions: dodge 3.44-&gt;8.44 m/s in ONE frame (~30g), lunge 0-&gt;4.4 (27g). Now ramped.</span></div>
+<div class=hr><span class=hn>r38</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>hipOffset was 100x off — rig authored in cm, code wrote metres: 0.55mm of bob against 55mm requested. Fixed by deriving units from world scale.</span></div>
 <div class=hr><span class=hn>r22</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>anim/procedural.js drives the humanoid rig directly: stride, knee bend, hip bob/roll, spine counter-rotation, attack wind-up/pass/settle, additive hit recoil, weighted death</span></div>
 </div>
 </div></div>
-<div class=piece><div class=ph><span class=dot style='background:#a855f7'></span><span class=pn>Combat Feel</span><span class=st style='color:#a855f7'>in review</span><span class=rd>round 37</span></div><div class=pb>
-<div class=gap><b>Biggest remaining gap:</b> No ragdoll on death, no launcher/juggle, no grabs or finishers. Enemy attack variety is one swing.</div>
+<div class=piece><div class=ph><span class=dot style='background:#a855f7'></span><span class=pn>Combat Feel</span><span class=st style='color:#a855f7'>in review</span><span class=rd>round 38</span></div><div class=pb>
+<div class=gap><b>Biggest remaining gap:</b> Locomotion has no ground contact model — stance foot slides at 92% of body speed AND the lower toe sits 17cm off the floor for half of every stride. Critic recommends abandoning procedural locomotion for retargeted clips.</div>
 <div class=shots>
 <div class=shot><a href='../shots/round36/arena_ots.png' target=_blank><img src='../shots/round36/arena_ots.png' loading=lazy></a><div class=cap><span>r36 · arena OTS</span><span>r36</span></div></div>
 </div>
 <div class=hist>
+<div class=hr><span class=hn>r38</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>ring was body-contact not spacing (p10 0.87m). Now p10 1.36m / median 6.40m. Weight classes added: every zombie was mass 1.0 so mass-scaled knockback had nothing to scale.</span></div>
+<div class=hr><span class=hn>r38</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>clampToArena ran after resolveBodies and undid separation — 49.5cm penetration when pinned on the bound. Now interleaved, 3 passes.</span></div>
+<div class=hr><span class=hn>r38</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>director minSpacing gated token GRANTS not BLOWS — 2 simultaneous attackers in 5.6% of frames. Now gates the swing: peak 1 simultaneous attacker over 595 samples.</span></div>
+<div class=hr><span class=hn>r38</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>CRITIC found Zombie.update returned before anim.update AND before position integration: _poseDeath had NEVER executed (corpses stood bolt upright) and the finisher knockback was discarded every time (0.0cm displacement, 4 of 4). Fixed — lethal finisher now displaces 219cm.</span></div>
 <div class=hr><span class=hn>r37</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>knockback impulse on every hit, scaled by target mass; finisher launches (9.5 m/s) vs light hits (3.2).</span></div>
 <div class=hr><span class=hn>r37</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>body collision added — actors previously walked through each other. Mass-weighted separation, 2 passes/frame. Worst overlap -0.000m over 2000 pair-samples.</span></div>
 <div class=hr><span class=hn>r37</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>attack-token director: max 2 token holders with 0.55s spacing, everyone else holds a rotating ring slot. Measured peak 2 tokens / peak 1 SIMULTANEOUS attacker across 240 frames — a readable crowd instead of a scrum.</span></div>
@@ -205,4 +213,4 @@ footer{padding:26px 28px;color:#5d646e;font-size:11.5px}
 <div class=hr><span class=hn>r37</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>AudioEngine wired: impacts (inharmonic metal partials), whoosh, parry ring, hurt with master duck, footsteps driven off the animator stride phase, wind bed + drone. Verified by analyser: impact 0.703, parry 0.502, ambience 0.057.</span></div>
 </div>
 </div></div>
-</main><footer>auto-refreshes every 10s · generated 18:58:48</footer>
+</main><footer>auto-refreshes every 10s · generated 19:31:58</footer>

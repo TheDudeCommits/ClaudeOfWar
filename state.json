@@ -368,9 +368,9 @@
     {
       "id": "animation",
       "name": "Animation & Physics",
-      "status": "review",
-      "round": 37,
-      "gap": "Footsteps now sync to the stride phase, but there is still no root-motion or IK ground adaptation.",
+      "status": "rejected",
+      "round": 38,
+      "gap": "DECISION PENDING: critic recommends abandoning procedural locomotion for retargeted Mixamo clips, keeping the procedural layer as additive-only (hit flinch, attack lean, idle breath). Rig is mixamorig-shaped so retarget is a name map.",
       "shots": [
         {
           "path": "shots/round36/arena_ots.png",
@@ -383,6 +383,26 @@
           "round": 22,
           "verdict": "FAIL",
           "note": "anim/procedural.js drives the humanoid rig directly: stride, knee bend, hip bob/roll, spine counter-rotation, attack wind-up/pass/settle, additive hit recoil, weighted death"
+        },
+        {
+          "round": 38,
+          "verdict": "FAIL",
+          "note": "hipOffset was 100x off \u2014 rig authored in cm, code wrote metres: 0.55mm of bob against 55mm requested. Fixed by deriving units from world scale."
+        },
+        {
+          "round": 38,
+          "verdict": "FAIL",
+          "note": "velocity changes were single-frame step functions: dodge 3.44->8.44 m/s in ONE frame (~30g), lunge 0->4.4 (27g). Now ramped."
+        },
+        {
+          "round": 38,
+          "verdict": "FAIL",
+          "note": "animator was fed intent velocity not realized displacement \u2014 85% of pinned frames ran a full stride cycle going nowhere. Now fed realized delta."
+        },
+        {
+          "round": 38,
+          "verdict": "FAIL",
+          "note": "constant -0.25 on the forearm popped discontinuously at both ends of every swing (13 m/s weapon-tip spike, 6x per combo). Enveloped."
         }
       ],
       "brief": "Locomotion, attack sets, directional hit reactions, foot IK, ragdoll, cloth."
@@ -391,8 +411,8 @@
       "id": "combat",
       "name": "Combat Feel",
       "status": "review",
-      "round": 37,
-      "gap": "No ragdoll on death, no launcher/juggle, no grabs or finishers. Enemy attack variety is one swing.",
+      "round": 38,
+      "gap": "Locomotion has no ground contact model \u2014 stance foot slides at 92% of body speed AND the lower toe sits 17cm off the floor for half of every stride. Critic recommends abandoning procedural locomotion for retargeted clips.",
       "shots": [
         {
           "path": "shots/round36/arena_ots.png",
@@ -425,6 +445,26 @@
           "round": 37,
           "verdict": "FAIL",
           "note": "knockback impulse on every hit, scaled by target mass; finisher launches (9.5 m/s) vs light hits (3.2)."
+        },
+        {
+          "round": 38,
+          "verdict": "FAIL",
+          "note": "CRITIC found Zombie.update returned before anim.update AND before position integration: _poseDeath had NEVER executed (corpses stood bolt upright) and the finisher knockback was discarded every time (0.0cm displacement, 4 of 4). Fixed \u2014 lethal finisher now displaces 219cm."
+        },
+        {
+          "round": 38,
+          "verdict": "FAIL",
+          "note": "director minSpacing gated token GRANTS not BLOWS \u2014 2 simultaneous attackers in 5.6% of frames. Now gates the swing: peak 1 simultaneous attacker over 595 samples."
+        },
+        {
+          "round": 38,
+          "verdict": "FAIL",
+          "note": "clampToArena ran after resolveBodies and undid separation \u2014 49.5cm penetration when pinned on the bound. Now interleaved, 3 passes."
+        },
+        {
+          "round": 38,
+          "verdict": "FAIL",
+          "note": "ring was body-contact not spacing (p10 0.87m). Now p10 1.36m / median 6.40m. Weight classes added: every zombie was mass 1.0 so mass-scaled knockback had nothing to scale."
         }
       ],
       "brief": "Hitstop, screen shake, camera punch, parry/dodge windows, commitment frames, enemy AI."

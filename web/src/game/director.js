@@ -19,13 +19,17 @@ const _v = new THREE.Vector3();
 export class CombatDirector {
   constructor(opts = {}) {
     this.maxAttackers = opts.maxAttackers ?? 2;
-    this.ringMin = opts.ringMin ?? 2.6;
-    this.ringMax = opts.ringMax ?? 4.4;
+    // Measured median enemy-to-player distance was 1.42m with p10 at 0.87m —
+    // body contact, not tactical spacing. Two of four draugr were permanently
+    // pressed against the hero.
+    this.ringMin = opts.ringMin ?? 3.6;
+    this.ringMax = opts.ringMax ?? 5.6;
     // Stagger so two token-holders never land a blow on the same frame; the
     // player needs a readable gap to react in.
     this.minSpacing = opts.minSpacing ?? 0.55;
     this._tokens = new Set();
     this._lastGrant = -99;
+    this._lastSwing = -99;
     this.time = 0;
   }
 
@@ -64,10 +68,14 @@ export class CombatDirector {
 
     // Assign each non-attacker a slot on the ring so they spread around the
     // player instead of clumping on the side they happened to arrive from.
-    const idle = enemies.filter((e) => !e.dead && !e.hasToken);
-    const n = Math.max(1, idle.length);
-    idle.forEach((e, i) => {
-      if (e._slot === undefined) e._slot = i;
+    // Slot count is taken from the LIVING population, not the idle subset:
+    // using the idle count made every ring angle jump each time a token
+    // changed hands.
+    const alive = enemies.filter((e) => !e.dead);
+    const n = Math.max(1, alive.length);
+    alive.forEach((e, i) => { if (e._slot === undefined) e._slot = i; });
+    const idle = alive.filter((e) => !e.hasToken);
+    idle.forEach((e) => {
       // Slowly rotate the ring so a held position still feels alive.
       const ang = (e._slot / n) * Math.PI * 2 + this.time * 0.22;
       const r = this.ringMin + (this.ringMax - this.ringMin) * ((e._slot % 3) / 2);
@@ -76,6 +84,20 @@ export class CombatDirector {
         0,
         player.root.position.z + Math.sin(ang) * r).clone();
     });
+  }
+
+  /**
+   * Gate the SWING, not the token grant.
+   *
+   * Spacing the grants does not space the blows: each holder then swings on its
+   * own randomised cooldown, and two landed simultaneously in 5.6% of frames.
+   * The player needs a guaranteed readable gap between incoming attacks, so
+   * every swing has to ask permission at the moment it fires.
+   */
+  requestSwing() {
+    if (this.time - this._lastSwing < this.minSpacing) return false;
+    this._lastSwing = this.time;
+    return true;
   }
 
   release(enemy) {

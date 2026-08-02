@@ -110,10 +110,17 @@ export class Actor {
     this._recoil.multiplyScalar(Math.exp(-12 * dt));
     if (this.dead) {
       this._deathT = Math.min(1, this._deathT + dt * 1.6);
-      const t = this._deathT;
-      // Topple with a bit of overshoot so it settles rather than snapping flat.
-      const fall = 1 - Math.pow(1 - t, 3);
+      // Corpses must keep integrating velocity, or a killing blow's knockback
+      // is silently discarded. The finisher's 9.5 m/s launch measured 0.0cm of
+      // displacement because `update` returned before this ran.
+      this.root.position.addScaledVector(this.vel, dt);
+      this.vel.multiplyScalar(Math.exp(-4.5 * dt));
+      this.clampToArena();
+      const fall = 1 - Math.pow(1 - this._deathT, 3);
       this.root.position.y = this._baseY - fall * 0.06;
+      // And the death pose has to be driven, or the corpse freezes upright in
+      // whatever walk frame it died on.
+      this.anim?.update(dt, 0, null, this._deathT);
     }
   }
 
@@ -223,7 +230,10 @@ export class Player extends Actor {
         this.iframes = 0.30;   // ART_BIBLE §11
         const d = moving ? _v4.copy(dir).normalize()
           : _v4.set(Math.sin(this.face), 0, Math.cos(this.face)).negate();
-        this.vel.copy(d.multiplyScalar(9.5));
+        // Ramped, not stepped: `vel.copy()` here measured 3.44 -> 8.44 m/s in
+        // ONE frame (~30 g). Store a target and accelerate toward it.
+        this._burst = d.clone().multiplyScalar(9.5);
+        this._burstT = 0.10;
       } else if (input.consumeAttack() && this.stamina > 12) {
         this.state = 'attack'; this.t = 0; this.stamina -= 12;
         this.combo = (this.combo + 1) % 3;
@@ -240,7 +250,8 @@ export class Player extends Actor {
         this.vel.multiplyScalar(Math.exp(-9 * dt));            // wind up
       } else if (k < 0.46) {
         const f = _v1.set(Math.sin(this.face), 0, Math.cos(this.face));
-        this.vel.copy(f.multiplyScalar(this.combo === 2 ? 6.5 : 4.4));  // lunge
+        this._burst = f.clone().multiplyScalar(this.combo === 2 ? 6.5 : 4.4);
+        this._burstT = 0.08;                                            // lunge
       } else {
         this.vel.multiplyScalar(Math.exp(-14 * dt));           // recovery
       }
@@ -255,10 +266,26 @@ export class Player extends Actor {
       if (this.t >= 0.38) this.state = 'idle';
     }
 
+    // Apply any pending burst over a short ramp rather than in a single frame.
+    if (this._burstT > 0) {
+      this._burstT -= dt;
+      this.vel.lerp(this._burst, 1 - Math.exp(-26 * dt));
+    }
+
     this.root.position.addScaledVector(this.vel, dt);
     this.root.position.addScaledVector(this._recoil, dt * 8);
     this.clampToArena();
     this.root.rotation.y = this.face + Math.PI;
+
+    // The animator must see the ground speed actually achieved, not the speed
+    // requested. Collision and arena clamping both move the root after velocity
+    // is chosen, so `vel` overstates it — pinned against the bound, 85% of
+    // frames had realized speed below half of `vel`, i.e. a full stride cycle
+    // going nowhere.
+    const realized = this._prevPos
+      ? _v1.copy(this.root.position).sub(this._prevPos).setY(0).length() / Math.max(dt, 1e-4)
+      : this.vel.length();
+    (this._prevPos ||= new THREE.Vector3()).copy(this.root.position);
 
     // Footsteps fire off the animator's stride phase, so they land on the
     // planted foot rather than on an independent timer that drifts out of sync.
@@ -273,11 +300,16 @@ export class Player extends Actor {
 
     // Body motion is skeletal now; the root only carries yaw.
     const dur = this.combo === 2 ? 0.62 : 0.44;
-    this.anim?.update(dt, this.vel.length(),
+    this.anim?.update(dt, realized,
       this.state === 'attack'
         ? { active: true, k: Math.min(1, this.t / dur), combo: this.combo }
         : null,
-      this.dead ? this._deathT : 0);
+      0);
+    // NOTE: a two-bone foot-lock IK was tried here and removed. It wrote bad
+    // quaternions that flung the legs — measured foot world-Y went from 0.58m
+    // to 1.62m, i.e. above the hip. Speed-matched stride (anim/procedural.js)
+    // is the correct primary fix for sliding; IK is only worth reintroducing
+    // with a solver that is verified in isolation first.
   }
 
   swing(enemies, fx) {
@@ -322,10 +354,15 @@ export class Zombie extends Actor {
     this._t = Math.random() * 10;
     // Silhouette variety: a pack of identical models at identical scale merges
     // into one mass at combat distance. ART_BIBLE §9.
-    const v = 0.88 + Math.random() * 0.26;
+    // Real weight classes. Previously every draugr was mass 1.0, so the
+    // mass-scaled knockback had nothing to scale against and heavy and light
+    // enemies felt identical.
+    const v = 0.82 + Math.random() * 0.42;
     root.scale.setScalar(v);
-    this.speed *= 1.10 - (v - 0.88) * 0.6;   // bigger = slower
-    this.maxHp = this.hp = 100 * v;
+    this.mass = v * v * v * 1.35;            // mass goes as volume
+    this.speed *= 1.22 - (v - 0.82) * 0.85;  // bigger = slower
+    this.radius *= v;
+    this.maxHp = this.hp = 100 * v * v;
     this.anim = new Animator(root, ZOMBIE_ANIM);
   }
 
@@ -384,7 +421,8 @@ export class Zombie extends Actor {
       this.state = 'walk';
     } else {
       this.vel.multiplyScalar(Math.exp(-12 * dt));
-      if (this.attackCd <= 0 && this.hasToken) {
+      if (this.attackCd <= 0 && this.hasToken &&
+          (!this.director || this.director.requestSwing())) {
         this.attackCd = 1.6 + Math.random() * 1.2;
         this.state = 'attack';
         this._swingAt = 0.42;
@@ -428,10 +466,15 @@ export class Zombie extends Actor {
 
     // Telegraph: a readable wind-up the animator plays, not a 14-degree root
     // lean on a grey figure the player cannot see at 8 m.
-    this.anim?.update(dt, this.vel.length(),
+    const zRealized = this._prevPos
+      ? _v1.copy(this.root.position).sub(this._prevPos).setY(0).length() / Math.max(dt, 1e-4)
+      : this.vel.length();
+    (this._prevPos ||= new THREE.Vector3()).copy(this.root.position);
+    this.anim?.update(dt, zRealized,
       this.state === 'attack'
         ? { active: true, k: Math.max(0, 1 - Math.max(0, this._swingAt) / 0.42), combo: 0 }
         : null,
-      this.dead ? this._deathT : 0);
+      0);
+
   }
 }

@@ -204,12 +204,17 @@ function frame() {
       player.update(sdt, input, camera, enemies, fx);
       for (const e of enemies) e.update(sdt, player, fx, enemies);
       // Bodies resolve after movement so nothing ends the frame inside anything
-      // else. Two passes: one sweep leaves residual overlap in a dense pack.
+      // else. Clamp BEFORE each separation pass, not once at the end: clamping
+      // last projected everyone back onto the arena circle and undid the
+      // separation, which allowed 49.5cm of penetration when the pack pinned
+      // the player against the bound.
       _bodies.length = 0;
       _bodies.push(player);
       for (const e of enemies) if (!e.dead) _bodies.push(e);
-      resolveBodies(_bodies, sdt);
-      resolveBodies(_bodies, sdt);
+      for (let pass = 0; pass < 3; pass++) {
+        for (const a of _bodies) a.clampToArena();
+        resolveBodies(_bodies, sdt);
+      }
       for (const a of _bodies) a.clampToArena();
     }
     // Rebuilt in place; `filter().map()` allocated two arrays every frame.

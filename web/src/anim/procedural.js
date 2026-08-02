@@ -23,11 +23,23 @@ const BONES = [
 
 const _e = new THREE.Euler();
 const _q = new THREE.Quaternion();
+const _qa = new THREE.Quaternion();
+const _fv = new THREE.Vector3();
+const _hv = new THREE.Vector3();
+const _kv = new THREE.Vector3();
+const _wv = new THREE.Vector3();
+const _dir = new THREE.Vector3();
+const _pq = new THREE.Quaternion();
+const _q2 = new THREE.Quaternion();
+const _q3 = new THREE.Quaternion();
+const _down = new THREE.Vector3(0, -1, 0);
+const _right = new THREE.Vector3(1, 0, 0);
 
 export class HumanoidRig {
   constructor(root) {
     this.b = {};
     this.rest = {};
+    this.axis = {};      // per-bone pitch/yaw/roll axes, in BONE-LOCAL space
     root.traverse((o) => {
       if (o.isBone && BONES.includes(o.name) && !this.b[o.name]) {
         this.b[o.name] = o;
@@ -36,6 +48,40 @@ export class HumanoidRig {
     });
     this.ok = !!(this.b.Hips && this.b.LeftUpLeg && this.b.RightUpLeg);
     this.hipsRestY = this.b.Hips ? this.b.Hips.position.y : 0;
+    // Metres -> rig units, derived rather than assumed.
+    this.hipUnits = 1;
+    if (this.b.Hips) {
+      const ws = new THREE.Vector3();
+      this.b.Hips.getWorldScale(ws);
+      const sc = (ws.x + ws.y + ws.z) / 3;
+      if (sc > 1e-6) this.hipUnits = 1 / sc;
+    }
+
+    /*
+     * Derive each bone's rotation axes from the bind pose.
+     *
+     * Rotating every bone about its local X and calling that "pitch" assumes
+     * the exporter oriented all bones the same way. This rig does not: doing
+     * so swung the legs sideways and upward, putting the foot at world Y 1.6 —
+     * above the hip. Instead, take the CHARACTER's right/up/forward axes and
+     * express them in each bone's local frame, so "swing the leg forward"
+     * means the same thing on every bone regardless of its bind orientation.
+     */
+    root.updateWorldMatrix(true, true);
+    const charQ = new THREE.Quaternion();
+    root.getWorldQuaternion(charQ);
+    const inv = new THREE.Quaternion();
+    const bq = new THREE.Quaternion();
+    for (const n in this.b) {
+      this.b[n].updateWorldMatrix(true, false);
+      this.b[n].getWorldQuaternion(bq);
+      inv.copy(bq).invert();
+      this.axis[n] = {
+        pitch: new THREE.Vector3(1, 0, 0).applyQuaternion(charQ).applyQuaternion(inv).normalize(),
+        yaw:   new THREE.Vector3(0, 1, 0).applyQuaternion(charQ).applyQuaternion(inv).normalize(),
+        roll:  new THREE.Vector3(0, 0, 1).applyQuaternion(charQ).applyQuaternion(inv).normalize(),
+      };
+    }
   }
 
   /** Reset every driven bone to bind pose; call once per frame before posing. */
@@ -44,25 +90,34 @@ export class HumanoidRig {
     if (this.b.Hips) this.b.Hips.position.y = this.hipsRestY;
   }
 
-  /** Rotate a bone by euler radians relative to its bind pose. */
+  /** Build a rotation from character-space pitch/yaw/roll for this bone. */
+  _delta(name, x, y, z) {
+    const a = this.axis[name];
+    _q.identity();
+    if (x) _q.multiply(_qa.setFromAxisAngle(a.pitch, x));
+    if (y) _q.multiply(_qa.setFromAxisAngle(a.yaw, y));
+    if (z) _q.multiply(_qa.setFromAxisAngle(a.roll, z));
+    return _q;
+  }
+
+  /** Rotate a bone by character-space radians relative to its bind pose. */
   rot(name, x, y, z) {
     const bone = this.b[name];
     if (!bone) return;
-    _e.set(x, y, z);
-    _q.setFromEuler(_e);
-    bone.quaternion.copy(this.rest[name]).multiply(_q);
+    bone.quaternion.copy(this.rest[name]).multiply(this._delta(name, x, y, z));
   }
 
   addRot(name, x, y, z) {
     const bone = this.b[name];
     if (!bone) return;
-    _e.set(x, y, z);
-    _q.setFromEuler(_e);
-    bone.quaternion.multiply(_q);
+    bone.quaternion.multiply(this._delta(name, x, y, z));
   }
 
   hipOffset(dy) {
-    if (this.b.Hips) this.b.Hips.position.y = this.hipsRestY + dy;
+    // The rig is authored in CENTIMETRES (hipsRestY ~98.7 with a 0.01 world
+    // scale), so writing metres here produced 0.55mm of bob against the 55mm
+    // requested — i.e. no vertical movement at all.
+    if (this.b.Hips) this.b.Hips.position.y = this.hipsRestY + dy * this.hipUnits;
   }
 }
 
@@ -90,6 +145,19 @@ export class Animator {
     this.hit = 0;
     this.hitDir = 0;
     this._speed = 0;
+    // Measured from the bind pose so stride length is derived from the actual
+    // rig rather than assumed.
+    this.legLength = 0.92;
+    if (this.rig.ok && this.rig.b.LeftUpLeg && this.rig.b.LeftFoot) {
+      const a = new THREE.Vector3(), b = new THREE.Vector3();
+      this.rig.b.LeftUpLeg.getWorldPosition(a);
+      this.rig.b.LeftFoot.getWorldPosition(b);
+      const l = a.distanceTo(b);
+      if (l > 0.2 && l < 2.0) this.legLength = l;
+    }
+    // Foot lock: world position each foot is pinned to while in stance.
+    this._lock = [new THREE.Vector3(), new THREE.Vector3()];
+    this._locked = [false, false];
   }
 
   get ok() { return this.rig.ok; }
@@ -113,10 +181,22 @@ export class Animator {
 
     if (deadT > 0) { this._poseDeath(deadT); return; }
 
-    // Stride frequency scales with speed so the feet do not skate.
-    const freq = t.strideFreq * (0.55 + sp * 0.34);
-    if (moving) this.phase += dt * freq * Math.PI * 2;
-    else this.phase += dt * 1.1;
+    // Stride frequency must be DERIVED from speed, not merely correlated with
+    // it. A foot is only planted if its backward swing exactly cancels the
+    // body's forward motion, which requires one full stride per stride-length
+    // of ground covered. The previous arbitrary curve left planted feet moving
+    // at 3.78 m/s — i.e. skating at body speed, no planting at all.
+    //
+    //   strideLength ~= 2 * legLength * sin(strideAmp)
+    //   steps/sec     = speed / strideLength
+    //   phase is one full cycle (two steps) per 2*PI
+    const strideLen = Math.max(0.35, 2 * this.legLength * Math.sin(t.strideAmp));
+    if (moving) {
+      const stepsPerSec = sp / strideLen;
+      this.phase += dt * stepsPerSec * Math.PI;   // PI per step, 2PI per cycle
+    } else {
+      this.phase += dt * 1.1;
+    }
 
     const p = this.phase;
     const gait = moving ? Math.min(1, sp / 3.0) : 0;
@@ -180,6 +260,7 @@ export class Animator {
     rig.rot('Head', -c * 0.04 * gait + loll * 0.3, 0, 0);
   }
 
+
   _poseIdle(p) {
     const rig = this.rig, t = this.t;
     const br = Math.sin(p * 0.55) * t.idleBreath;
@@ -238,7 +319,12 @@ export class Animator {
     rig.addRot('RightShoulder', 0, twist * 0.22, -armSwing * 0.16);
     rig.addRot('RightArm', -armSwing * (0.85 + overhead * 0.5), twist * 0.18,
       -armSwing * 0.22 * (1 - overhead));
-    rig.addRot('RightForeArm', -Math.abs(armSwing) * 0.42 - 0.25, 0, 0);
+    // The -0.25 used to be a constant, which appeared and vanished instantly at
+    // the start and end of every attack: a discontinuous 0.25 rad step that
+    // spiked weapon-tip speed to 13 m/s for one frame, six times per combo.
+    // Enveloped so it fades in and out with the swing.
+    const env = Math.min(1, Math.abs(armSwing) * 1.2);
+    rig.addRot('RightForeArm', -Math.abs(armSwing) * 0.42 - 0.25 * env, 0, 0);
     // Left arm counterbalances.
     rig.addRot('LeftArm', armSwing * 0.34, twist * 0.10, armSwing * 0.18);
     rig.addRot('LeftForeArm', -Math.abs(armSwing) * 0.30, 0, 0);
