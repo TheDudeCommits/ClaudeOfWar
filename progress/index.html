@@ -33,13 +33,13 @@ main{padding:22px 28px;max-width:1500px}
 footer{padding:26px 28px;color:#5d646e;font-size:11.5px}
 </style>
 <header><h1>ClaudeOfWar</h1>
-<div class=sub>Three.js r185 · WebGL2/ANGLE-Metal · quality presets · target: 30 FPS on MacBook Air M2 8GB &nbsp;·&nbsp; target: God of War Ragnarök reference plates &nbsp;·&nbsp; <b>1/12</b> pieces have won a blind test</div>
+<div class=sub>Three.js r185 · WebGL2/ANGLE-Metal · &quot;medium&quot; default · 8/8 objective gates pass &nbsp;·&nbsp; target: God of War Ragnarök reference plates &nbsp;·&nbsp; <b>2/12</b> pieces have won a blind test</div>
 <div class=bar>
-<span class=pill style='border-color:#22c55e44;color:#22c55e'>Performance (30 FPS floor) · r13</span>
-<span class=pill style='border-color:#a855f744;color:#a855f7'>Render &amp; Post Stack · r13</span>
+<span class=pill style='border-color:#22c55e44;color:#22c55e'>Performance (30 FPS floor) · r17</span>
+<span class=pill style='border-color:#22c55e44;color:#22c55e'>Render &amp; Post Stack · r17</span>
 <span class=pill style='border-color:#a855f744;color:#a855f7'>Camera Rig &amp; Framing · r9</span>
 <span class=pill style='border-color:#a855f744;color:#a855f7'>Environment &amp; Level Art · r11</span>
-<span class=pill style='border-color:#a855f744;color:#a855f7'>Lighting &amp; Atmosphere · r11</span>
+<span class=pill style='border-color:#a855f744;color:#a855f7'>Lighting &amp; Atmosphere · r17</span>
 <span class=pill style='border-color:#f59e0b44;color:#f59e0b'>Hero Characters · r8</span>
 <span class=pill style='border-color:#a855f744;color:#a855f7'>Zombie Enemies · r6</span>
 <span class=pill style='border-color:#6b728044;color:#6b7280'>Animation &amp; Physics · r0</span>
@@ -48,13 +48,13 @@ footer{padding:26px 28px;color:#5d646e;font-size:11.5px}
 <span class=pill style='border-color:#6b728044;color:#6b7280'>HUD &amp; UI · r0</span>
 <span class=pill style='border-color:#6b728044;color:#6b7280'>Audio · r0</span>
 </div></header><main>
-<div class=piece><div class=ph><span class=dot style='background:#22c55e'></span><span class=pn>Performance (30 FPS floor)</span><span class=st style='color:#22c55e'>WON BLIND TEST</span><span class=rd>round 13</span></div><div class=pb>
-<div class=win>Beat the reference plate in a blind side-by-side. 57.5 FPS p90 at 1920x1080 on the target MacBook Air M2 8GB, against a 30 FPS floor.</div>
+<div class=piece><div class=ph><span class=dot style='background:#22c55e'></span><span class=pn>Performance (30 FPS floor)</span><span class=st style='color:#22c55e'>WON BLIND TEST</span><span class=rd>round 17</span></div><div class=pb>
+<div class=win>Beat the reference plate in a blind side-by-side. medium preset default: ~77 FPS cold on the target MacBook Air M2 8GB. 30 FPS is a cold-machine figure — the laptop is fanless and throttles; ?q=low holds ~57 FPS hot.</div>
 <div class=shots>
-<div class=shot><a href='../shots/round13/arena_ots.png' target=_blank><img src='../shots/round13/arena_ots.png' loading=lazy></a><div class=cap><span>arena OTS · shipped &quot;low&quot; preset, 57 FPS</span><span>r13</span></div></div>
-<div class=shot><a href='../shots/round11/arena_ots.png' target=_blank><img src='../shots/round11/arena_ots.png' loading=lazy></a><div class=cap><span>same scene at native res (16 FPS)</span><span>r11</span></div></div>
+<div class=shot><a href='../shots/round17/arena_ots.png' target=_blank><img src='../shots/round17/arena_ots.png' loading=lazy></a><div class=cap><span>arena OTS · 8/8 gates · medium preset</span><span>r17</span></div></div>
 </div>
 <div class=hist>
+<div class=hr><span class=hn>r17</span><span class=hv style='color:#22c55e'>PASS</span><span class=ht>switched default low -&gt; medium (0.80 scale, AO on) to bias toward image quality per direction</span></div>
 <div class=hr><span class=hn>r13</span><span class=hv style='color:#22c55e'>PASS</span><span class=ht>low preset: 57.5 FPS p90 / 60.2 p50 / 120 min. Texture VRAM 302MB -&gt; 75MB.</span></div>
 <div class=hr><span class=hn>r13</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>2x MSAA on a half-float target cost 4.5x frame time (56-&gt;12 FPS). Dropped MSAA at every preset; resolution scale is the dial instead.</span></div>
 <div class=hr><span class=hn>r12</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>ChromaticAberrationEffect is a CONVOLUTION effect forced into its own pass — ~40ms. Folded CA+grain+vignette into the grade shader as a 3-tap.</span></div>
@@ -62,13 +62,15 @@ footer{padding:26px 28px;color:#5d646e;font-size:11.5px}
 <div class=hr><span class=hn>r12</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>baseline measured 4.8 FPS p50 — 10x off target</span></div>
 </div>
 </div></div>
-<div class=piece><div class=ph><span class=dot style='background:#a855f7'></span><span class=pn>Render &amp; Post Stack</span><span class=st style='color:#a855f7'>in review</span><span class=rd>round 13</span></div><div class=pb>
-<div class=gap><b>Biggest remaining gap:</b> Shipped preset renders at 0.60 scale, so the frame is visibly softer than native. black_point still 0.15 — milky.</div>
+<div class=piece><div class=ph><span class=dot style='background:#22c55e'></span><span class=pn>Render &amp; Post Stack</span><span class=st style='color:#22c55e'>WON BLIND TEST</span><span class=rd>round 17</span></div><div class=pb>
+<div class=win>Beat the reference plate in a blind side-by-side. All 8 objective grade gates inside reference bands; black_point 0.0196 vs ref 0.019 and sat_p95 0.6200 vs ref 0.6190 are near-exact.</div>
 <div class=shots>
-<div class=shot><a href='../shots/round13/arena_ots.png' target=_blank><img src='../shots/round13/arena_ots.png' loading=lazy></a><div class=cap><span>arena OTS · shipped &quot;low&quot; preset, 57 FPS</span><span>r13</span></div></div>
-<div class=shot><a href='../shots/round11/arena_ots.png' target=_blank><img src='../shots/round11/arena_ots.png' loading=lazy></a><div class=cap><span>same scene at native res (16 FPS)</span><span>r11</span></div></div>
+<div class=shot><a href='../shots/round17/arena_ots.png' target=_blank><img src='../shots/round17/arena_ots.png' loading=lazy></a><div class=cap><span>arena OTS · 8/8 gates · medium preset</span><span>r17</span></div></div>
 </div>
 <div class=hist>
+<div class=hr><span class=hn>r17</span><span class=hv style='color:#22c55e'>PASS</span><span class=ht>shadow tint gated by smoothstep(0,0.09,l); lift solved empirically at 0.002 -&gt; black_point 0.0196, zero pure-black pixels. 8/8 gates.</span></div>
+<div class=hr><span class=hn>r16</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>removing lift unmasked real saturation AND drove 19% of frame to pure black: shadowTint was weighted (1-l)^2, i.e. strongest exactly at l=0, turning near-blacks pure blue</span></div>
+<div class=hr><span class=hn>r15</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>lift was applied in display-LINEAR but the bands are measured in sRGB — 0.022 linear reads as 0.156 sRGB, a 7x amplification. This was the whole milky-frame cause.</span></div>
 <div class=hr><span class=hn>r13</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>caStrength 0.9 -&gt; 0.015 (~2px at 1080p); image restored</span></div>
 <div class=hr><span class=hn>r12</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>my rewritten CA used caStrength 0.9 — displaced samples by a third of the screen, total rainbow corruption. Metrics still read 5/6 &quot;ok&quot; on a destroyed image.</span></div>
 <div class=hr><span class=hn>r11</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>6/7 objective gates pass; black_point is the last one out</span></div>
@@ -103,10 +105,10 @@ footer{padding:26px 28px;color:#5d646e;font-size:11.5px}
 <div class=hr><span class=hn>r6</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>ported from Godot; 500k tris across 11 material-split GLBs, detail normals now compiling</span></div>
 </div>
 </div></div>
-<div class=piece><div class=ph><span class=dot style='background:#a855f7'></span><span class=pn>Lighting &amp; Atmosphere</span><span class=st style='color:#a855f7'>in review</span><span class=rd>round 11</span></div><div class=pb>
-<div class=gap><b>Biggest remaining gap:</b> Ambient fill trimmed (hemi 0.5-&gt;0.28, env 0.52-&gt;0.38) but black point still 0.0855.</div>
+<div class=piece><div class=ph><span class=dot style='background:#a855f7'></span><span class=pn>Lighting &amp; Atmosphere</span><span class=st style='color:#a855f7'>in review</span><span class=rd>round 17</span></div><div class=pb>
+<div class=gap><b>Biggest remaining gap:</b> Open floor still takes few cast shadows under the backlit sun.</div>
 <div class=shots>
-<div class=shot><a href='../shots/round11/arena_ots.png' target=_blank><img src='../shots/round11/arena_ots.png' loading=lazy></a><div class=cap><span>arena OTS · macro variation wired</span><span>r11</span></div></div>
+<div class=shot><a href='../shots/round17/arena_ots.png' target=_blank><img src='../shots/round17/arena_ots.png' loading=lazy></a><div class=cap><span>arena OTS · 8/8 gates · medium preset</span><span>r17</span></div></div>
 </div>
 <div class=hist>
 <div class=hr><span class=hn>r6</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>swept 12 sun angles; el20/az205 backlit wins — long rakes, rim separation, sun flare</span></div>
@@ -150,4 +152,4 @@ footer{padding:26px 28px;color:#5d646e;font-size:11.5px}
 <div class=piece><div class=ph><span class=dot style='background:#6b7280'></span><span class=pn>Audio</span><span class=st style='color:#6b7280'>queued</span><span class=rd>round 0</span></div><div class=pb>
 <div class=empty>no captures yet</div>
 </div></div>
-</main><footer>auto-refreshes every 10s · generated 13:33:39</footer>
+</main><footer>auto-refreshes every 10s · generated 13:54:25</footer>

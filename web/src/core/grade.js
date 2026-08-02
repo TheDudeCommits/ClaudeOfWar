@@ -79,13 +79,22 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
 
   // Split-tone: weight tints by tone zone so shadows go cool and highs warm
   // without flattening the midtones.
-  float sw = pow(1.0 - clamp(l, 0.0, 1.0), 2.0);
+  // The shadow weight must fall back off approaching true black. Weighting it
+  // by (1-l)^2 alone puts maximum tint exactly where the signal is weakest, so
+  // a near-black pixel becomes pure tint colour — fully saturated blue — and
+  // wrecks sat_mean the moment the black lift stops masking it.
+  float sw = pow(1.0 - clamp(l, 0.0, 1.0), 2.0) * smoothstep(0.0, 0.09, l);
   float hw = pow(clamp(l, 0.0, 1.0), 2.0);
   c += shadowTint * sw + highTint * hw;
 
   // Lift LAST so it actually sets the black floor. Applied before the S-curve
   // it gets mapped back below zero by the contrast expansion and clamped to
   // pure black — the single most conspicuous amateur tell.
+  //
+  // NOTE the space: this shader runs on display-LINEAR values and the frame is
+  // sRGB-encoded afterwards, so a lift of L lands at L^(1/2.2) in the measured
+  // image. 0.022 here reads as 0.156 sRGB. To hit the reference's 0.019 sRGB
+  // black point, lift must be ~0.019^2.2 = 0.0003.
   c = max(c, 0.0) * (1.0 - lift) + lift;
 
   // Animated grain, weighted toward the midtones so it doesn't crawl in the
@@ -110,7 +119,7 @@ export class GradeEffect extends Effect {
         ['highTint', new Uniform(opts.highTint ?? new Vector3(0.038, 0.016, -0.020))],
         ['contrast', new Uniform(opts.contrast ?? 1.12)],
         ['saturation', new Uniform(opts.saturation ?? 0.92)],
-        ['lift', new Uniform(opts.lift ?? 0.022)],
+        ['lift', new Uniform(opts.lift ?? 0.002)],
         ['gamma', new Uniform(opts.gamma ?? 1.0)],
         // Displacement is dir*r2*caStrength, so at the frame corner (|dir|~0.7,
         // r2~0.5) this yields ~0.005 uv ~= 2px at 1080p. Values near 1.0 shift

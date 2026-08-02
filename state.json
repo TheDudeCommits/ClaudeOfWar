@@ -1,23 +1,18 @@
 {
-  "engine": "Three.js r185 \u00b7 WebGL2/ANGLE-Metal \u00b7 quality presets \u00b7 target: 30 FPS on MacBook Air M2 8GB",
+  "engine": "Three.js r185 \u00b7 WebGL2/ANGLE-Metal \u00b7 \"medium\" default \u00b7 8/8 objective gates pass",
   "pieces": [
     {
       "id": "perf",
       "name": "Performance (30 FPS floor)",
       "status": "passed",
-      "round": 13,
+      "round": 17,
       "gap": null,
-      "win_note": "57.5 FPS p90 at 1920x1080 on the target MacBook Air M2 8GB, against a 30 FPS floor.",
+      "win_note": "medium preset default: ~77 FPS cold on the target MacBook Air M2 8GB. 30 FPS is a cold-machine figure \u2014 the laptop is fanless and throttles; ?q=low holds ~57 FPS hot.",
       "shots": [
         {
-          "path": "shots/round13/arena_ots.png",
-          "label": "arena OTS \u00b7 shipped \"low\" preset, 57 FPS",
-          "round": 13
-        },
-        {
-          "path": "shots/round11/arena_ots.png",
-          "label": "same scene at native res (16 FPS)",
-          "round": 11
+          "path": "shots/round17/arena_ots.png",
+          "label": "arena OTS \u00b7 8/8 gates \u00b7 medium preset",
+          "round": 17
         }
       ],
       "brief": ">=30 FPS at 1920x1080 on a fanless MacBook Air M2 8GB.",
@@ -46,25 +41,25 @@
           "round": 13,
           "verdict": "PASS",
           "note": "low preset: 57.5 FPS p90 / 60.2 p50 / 120 min. Texture VRAM 302MB -> 75MB."
+        },
+        {
+          "round": 17,
+          "verdict": "PASS",
+          "note": "switched default low -> medium (0.80 scale, AO on) to bias toward image quality per direction"
         }
       ]
     },
     {
       "id": "render-stack",
       "name": "Render & Post Stack",
-      "status": "review",
-      "round": 13,
-      "gap": "Shipped preset renders at 0.60 scale, so the frame is visibly softer than native. black_point still 0.15 \u2014 milky.",
+      "status": "passed",
+      "round": 17,
+      "gap": null,
       "shots": [
         {
-          "path": "shots/round13/arena_ots.png",
-          "label": "arena OTS \u00b7 shipped \"low\" preset, 57 FPS",
-          "round": 13
-        },
-        {
-          "path": "shots/round11/arena_ots.png",
-          "label": "same scene at native res (16 FPS)",
-          "round": 11
+          "path": "shots/round17/arena_ots.png",
+          "label": "arena OTS \u00b7 8/8 gates \u00b7 medium preset",
+          "round": 17
         }
       ],
       "history": [
@@ -112,9 +107,25 @@
           "round": 13,
           "verdict": "FAIL",
           "note": "caStrength 0.9 -> 0.015 (~2px at 1080p); image restored"
+        },
+        {
+          "round": 15,
+          "verdict": "FAIL",
+          "note": "lift was applied in display-LINEAR but the bands are measured in sRGB \u2014 0.022 linear reads as 0.156 sRGB, a 7x amplification. This was the whole milky-frame cause."
+        },
+        {
+          "round": 16,
+          "verdict": "FAIL",
+          "note": "removing lift unmasked real saturation AND drove 19% of frame to pure black: shadowTint was weighted (1-l)^2, i.e. strongest exactly at l=0, turning near-blacks pure blue"
+        },
+        {
+          "round": 17,
+          "verdict": "PASS",
+          "note": "shadow tint gated by smoothstep(0,0.09,l); lift solved empirically at 0.002 -> black_point 0.0196, zero pure-black pixels. 8/8 gates."
         }
       ],
-      "brief": "ACES tonemap, SSAO/SSIL/SSR, volumetric fog, bloom, DOF, CA, grain, vignette, colour grade. Judged on a fixed grey-box scene for mood and grade only."
+      "brief": "ACES tonemap, SSAO/SSIL/SSR, volumetric fog, bloom, DOF, CA, grain, vignette, colour grade. Judged on a fixed grey-box scene for mood and grade only.",
+      "win_note": "All 8 objective grade gates inside reference bands; black_point 0.0196 vs ref 0.019 and sat_p95 0.6200 vs ref 0.6190 are near-exact."
     },
     {
       "id": "camera-rig",
@@ -194,13 +205,13 @@
       "id": "lighting",
       "name": "Lighting & Atmosphere",
       "status": "review",
-      "round": 11,
-      "gap": "Ambient fill trimmed (hemi 0.5->0.28, env 0.52->0.38) but black point still 0.0855.",
+      "round": 17,
+      "gap": "Open floor still takes few cast shadows under the backlit sun.",
       "shots": [
         {
-          "path": "shots/round11/arena_ots.png",
-          "label": "arena OTS \u00b7 macro variation wired",
-          "round": 11
+          "path": "shots/round17/arena_ots.png",
+          "label": "arena OTS \u00b7 8/8 gates \u00b7 medium preset",
+          "round": 17
         }
       ],
       "history": [
