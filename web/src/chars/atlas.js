@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { asset } from '../core/paths.js';
 
 /**
  * CPU-side reader for a character's baked albedo atlas.
@@ -60,7 +61,7 @@ const _cache = new Map();
 export function detailTex(url, repeat = 1, srgb = false) {
   const key = url + '|' + repeat + '|' + srgb;
   if (_cache.has(key)) return _cache.get(key);
-  const t = new THREE.TextureLoader().load(url);
+  const t = new THREE.TextureLoader().load(asset(url));
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.repeat.setScalar(repeat);
   t.anisotropy = 8;

@@ -34,8 +34,19 @@ export const PRESETS = {
             bloomKernel: KernelSize.MEDIUM, shadow: 1024 },
 };
 
-const _q = new URLSearchParams(location.search).get('q');
-export const QUALITY = PRESETS[_q] || PRESETS.medium;
+// Kept in sync with ui/hud.js currentQuality(). Duplicated rather than imported
+// to avoid a cycle: hud.js is UI-layer and imports nothing from core.
+function _pickQuality() {
+  const url = new URLSearchParams(location.search).get('q');
+  if (url && PRESETS[url]) return url;
+  try {
+    const saved = localStorage.getItem('cow.quality');
+    if (saved && PRESETS[saved]) return saved;
+  } catch (e) { /* private mode */ }
+  return 'medium';
+}
+export const QUALITY_NAME = _pickQuality();
+export const QUALITY = PRESETS[QUALITY_NAME];
 export const RENDER_SCALE = QUALITY.scale;
 
 /**
@@ -97,9 +108,9 @@ export class Post {
 
     this.bloom = new BloomEffect({
       blendFunction: BlendFunction.ADD,
-      luminanceThreshold: 0.72,
+      luminanceThreshold: 0.82,
       luminanceSmoothing: 0.32,
-      intensity: 1.15,
+      intensity: 0.85,
       kernelSize: QUALITY.bloomKernel,
       mipmapBlur: true,
       radius: 0.72,

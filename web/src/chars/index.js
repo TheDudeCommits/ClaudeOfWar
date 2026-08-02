@@ -1,9 +1,10 @@
 import * as THREE from 'three';
+import { asset } from '../core/paths.js';
 import { readAtlas, detailTex } from './atlas.js';
 import { CLASS, classifyVertices, smoothClasses, splitIntoGroups } from './segment.js';
 import { injectHair, injectSkin, injectBody, injectZombie } from './shading.js';
 
-const ASSETS = '/assets/chars';
+const ASSETS = asset('assets/chars');
 
 /* ------------------------------------------------------------------ tuning */
 
@@ -18,14 +19,15 @@ export const HERO_TUNING = {
     sheenRoughness: 0.35,
     specularIntensity: 0.85,
     envMapIntensity: 1.0,
-    strands: 360,             // strands around the body axis
+    strands: 190,             // strands around the body axis
     clumpScale: 1 / 6,        // 6 strands per lock
-    clumpNormal: 0.52,
+    clumpNormal: 0.30,
     twist: 5.0,
-    normalStrength: 0.20,
-    contrast: 0.95,
-    ao: 0.58,
-    breakup: 0.26,
+    normalStrength: 0.11,
+    contrast: 0.42,
+    ao: 0.36,
+    breakup: 0.16,
+    detailStrength: 0.18,     // contribution of the strand normal map
     detailAcross: 1 / 64,     // strand map holds 64 strands across U
     detailAlong: 6.0,
     pivot: [0, 1.45, 0],
@@ -36,10 +38,10 @@ export const HERO_TUNING = {
     color: 0xbcc0c4,
     roughness: 0.50,
     sssColor: 0xc4544a,       // ART_BIBLE §7
-    sssStrength: 0.70,
+    sssStrength: 0.34,
     sssWrap: 0.42,
     skinSat: 0.86,
-    skinMottle: 0.12,
+    skinMottle: 0.05,
     poreRepeat: 64,
     poreScale: 0.55,
     sheen: 0.10,
@@ -211,7 +213,7 @@ export function setupHeroMaterials(root, tuning = HERO_TUNING) {
     name: 'hero_body',
     color: t.body.color,
     roughness: 0.75,
-    normalMap: detailTex(`${ASSETS}/leather_grain_normal.png`, t.body.grainRepeat),
+    normalMap: detailTex(`${ASSETS}/leather_grain_normal.webp`, t.body.grainRepeat),
     normalScale: new THREE.Vector2(t.body.grainScale, t.body.grainScale),
     sheen: t.body.sheen,
     sheenRoughness: 0.8,
@@ -233,8 +235,9 @@ export function setupHeroMaterials(root, tuning = HERO_TUNING) {
     uClumpScale: { value: t.hair.clumpScale },
     uClumpNormal: { value: t.hair.clumpNormal },
     uHairDetailScale: { value: new THREE.Vector2(t.hair.detailAcross, t.hair.detailAlong) },
+    uHairDetailStrength: { value: t.hair.detailStrength },
     uHairRoot: { value: new THREE.Color(t.hair.root) },
-    uHairDetail: { value: detailTex(`${ASSETS}/hair_strand_normal.png`, 1) },
+    uHairDetail: { value: detailTex(`${ASSETS}/hair_strand_normal.webp`, 1) },
   };
   const hair = new THREE.MeshPhysicalMaterial({
     ...common,
@@ -265,7 +268,7 @@ export function setupHeroMaterials(root, tuning = HERO_TUNING) {
     name: 'hero_skin',
     color: t.skin.color,
     roughness: t.skin.roughness,
-    normalMap: detailTex(`${ASSETS}/skin_pores_normal.png`, t.skin.poreRepeat),
+    normalMap: detailTex(`${ASSETS}/skin_pores_normal.webp`, t.skin.poreRepeat),
     normalScale: new THREE.Vector2(t.skin.poreScale, t.skin.poreScale),
     sheen: t.skin.sheen,
     sheenColor: new THREE.Color(t.skin.sheenColor),
@@ -350,7 +353,7 @@ export function setupZombieMaterials(root, tuning = ZOMBIE_TUNING) {
     roughness: 0.72,
     metalness: 0.0,
     side: THREE.DoubleSide,
-    normalMap: detailTex(`${ASSETS}/leather_grain_normal.png`, tuning.grainRepeat),
+    normalMap: detailTex(`${ASSETS}/leather_grain_normal.webp`, tuning.grainRepeat),
     normalScale: new THREE.Vector2(tuning.grainScale, tuning.grainScale),
     sheen: 0.25,
     sheenRoughness: 0.9,

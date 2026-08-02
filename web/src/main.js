@@ -1,9 +1,17 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { createRenderer, Post, TOD } from './core/rendering.js';
+import { asset } from './core/paths.js';
 import { World } from './world/world.js';
 import { surface } from './world/materials.js';
 import { OTSCamera } from './camera/ots.js';
+import { setupHeroMaterials, setupZombieMaterials } from './chars/index.js';
+import { createAtmosphere, atmosphereForTOD } from './vfx/atmosphere.js';
+import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
+import { Input, Player, Zombie } from './game/gameplay.js';
+import { CombatFX } from './game/fx.js';
+import { HUD } from './ui/hud.js';
 
 const ARENA_PARTS = ['ground', 'stone', 'snow', 'dirt', 'timber', 'plank',
   'bark', 'iron', 'rope', 'cloth', 'thatch'];
@@ -19,10 +27,39 @@ camera.position.set(2.1, 1.62, 3.4);
 const world = new World(scene, renderer);
 const post = new Post(renderer, scene, camera);
 const ots = new OTSCamera(camera);
+let state_atmos = null;
 
-const gltf = new GLTFLoader();
+// Empty air is an instant-fail tell (ART_BIBLE §12.6); the reference plates are
+// full of drifting snow at several depths.
+state_atmos = createAtmosphere(scene, atmosphereForTOD('cold_overcast'));
+
+// Meshes ship Draco-compressed: 62MB of GLB became 12MB, which is the
+// difference between a link that loads and one nobody waits for.
+const draco = new DRACOLoader();
+draco.setDecoderPath(asset('draco/'));
+const gltf = new GLTFLoader().setDRACOLoader(draco);
 const boot = document.getElementById('boot');
-const state = { hero: null, zombie: null, arena: new THREE.Group() };
+const state = { hero: null, zombie: null, zombieProto: null, arena: new THREE.Group() };
+const enemies = [];
+let player = null, input = null, fx = null, hud = null, wave = 1;
+
+function spawnZombie(x, z) {
+  // SkeletonUtils.clone rather than Object3D.clone: a plain clone shares the
+  // skeleton, so every copy would animate as one.
+  const root = skeletonClone(state.zombieProto);
+  root.position.set(x, 0, z);
+  scene.add(root);
+  enemies.push(new Zombie(root));
+  return root;
+}
+
+function startWave(n) {
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + Math.random();
+    const r = 6 + Math.random() * 2.5;
+    spawnZombie(Math.cos(a) * r, Math.sin(a) * r);
+  }
+}
 scene.add(state.arena);
 
 function load(url) {
@@ -31,7 +68,7 @@ function load(url) {
 
 async function loadArena() {
   const jobs = ARENA_PARTS.map(async (part) => {
-    const g = await load(`/assets/arena/arena_${part}.glb`);
+    const g = await load(asset(`assets/arena/arena_${part}.glb`));
     const mat = surface(part);
     g.scene.traverse((o) => {
       if (!o.isMesh) return;
@@ -46,36 +83,27 @@ async function loadArena() {
 }
 
 async function loadChars() {
-  const h = await load('/assets/chars/hero_ashvald.glb');
+  const h = await load(asset('assets/chars/hero_ashvald.glb'));
   state.hero = h.scene;
   state.heroClips = h.animations || [];
   state.hero.traverse((o) => {
-    if (!o.isMesh && !o.isSkinnedMesh) return;
-    o.castShadow = true;
-    o.receiveShadow = true;
-    const m = o.material;
-    if (m) {
-      // Generated meshes arrive with flat, plastic PBR values. Skin needs real
-      // subsurface response or it reads as painted vinyl (ART_BIBLE §8).
-      m.roughness = 0.52;
-      m.metalness = 0.0;
-      m.envMapIntensity = 1.0;
-      if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
-    }
+    if (o.isMesh || o.isSkinnedMesh) { o.castShadow = true; o.receiveShadow = true; }
   });
+  // Splits the single baked atlas into hair/skin/body draw groups by classifying
+  // vertices against the albedo, then shades each properly. The mesh ships with
+  // one material covering everything, so without this the hair renders as the
+  // flat near-white paint the atlas actually contains.
+  setupHeroMaterials(state.hero);
   scene.add(state.hero);
 
-  const z = await load('/assets/chars/zombie_draugr.glb');
-  state.zombie = z.scene;
-  state.zombie.traverse((o) => {
-    if (o.isMesh || o.isSkinnedMesh) {
-      o.castShadow = true; o.receiveShadow = true;
-      if (o.material) { o.material.roughness = 0.62; o.material.metalness = 0.0; }
-    }
+  const z = await load(asset('assets/chars/zombie_draugr.glb'));
+  state.zombieProto = z.scene;
+  state.zombieProto.traverse((o) => {
+    if (o.isMesh || o.isSkinnedMesh) { o.castShadow = true; o.receiveShadow = true; }
   });
-  state.zombie.position.set(-1.6, 0, -4.2);
-  scene.add(state.zombie);
-
+  setupZombieMaterials(state.zombieProto);
+  // `state.zombie` stays as the first spawn so existing shot specs keep working.
+  state.zombie = spawnZombie(-1.6, -4.2);
   ots.target = state.hero;
   ots.lockOn = state.zombie;
 }
@@ -92,13 +120,63 @@ addEventListener('resize', resize);
 const clock = new THREE.Clock();
 let paused = false;
 
+let clearT = 0;
+
+/** Nearest living enemy, biased to whatever is in front of the hero. */
+function lockTarget() {
+  let best = null, bestScore = Infinity;
+  const p = state.hero.position;
+  const f = new THREE.Vector3(Math.sin(player.face), 0, Math.cos(player.face));
+  for (const e of enemies) {
+    if (e.dead) continue;
+    const to = e.root.position.clone().sub(p); to.y = 0;
+    const d = to.length();
+    if (d > 16) continue;
+    // Distance, penalised for being behind the hero.
+    const score = d * (1.0 - 0.35 * to.normalize().dot(f));
+    if (score < bestScore) { bestScore = score; best = e; }
+  }
+  return best;
+}
+
 function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(clock.getDelta(), 0.05);
-  if (!paused) {
+
+  if (!paused && player) {
+    // fx.update returns the hitstop-scaled dt: the sim slows, the camera and
+    // atmosphere do not, which is what makes a hit land rather than stutter.
+    const sdt = hud.open ? 0 : fx.update(dt);
+    if (sdt > 0) {
+      player.update(sdt, input, camera, enemies, fx);
+      for (const e of enemies) e.update(sdt, player, fx, enemies);
+    }
+    const target = lockTarget();
+    ots.lockOn = target ? target.root : null;
+    hud.update(player, target);
+
+    if (player.dead) {
+      hud.banner('You Died');
+    } else if (enemies.every((e) => e.dead)) {
+      clearT += dt;
+      hud.banner(clearT < 2.2 ? `Wave ${wave} Cleared` : '');
+      if (clearT > 3.2) {
+        clearT = 0;
+        wave++;
+        for (const e of enemies) scene.remove(e.root);
+        enemies.length = 0;
+        startWave(Math.min(3 + wave, 8));
+        player.hp = Math.min(player.maxHp, player.hp + 60);
+      }
+    }
+    ots.update(dt);
+    world.followShadow(state.hero.position);
+  } else if (!paused) {
     ots.update(dt);
     if (state.hero) world.followShadow(state.hero.position);
   }
+
+  if (state_atmos) state_atmos.update(dt, camera);
   if (ots.lockOn) post.focusOn(ots.lockOn.position);
   post.render(dt);
 }
@@ -107,7 +185,10 @@ function frame() {
 // A shot spec owns the camera and the world state outright so a critic can
 // reproduce an exact framing across rounds. Mirrors the Godot harness contract.
 async function applyShot(spec) {
-  if (spec.time_of_day) { world.applyTOD(spec.time_of_day); }
+  if (spec.time_of_day) {
+    world.applyTOD(spec.time_of_day);
+    if (state_atmos) state_atmos.setPreset(atmosphereForTOD(spec.time_of_day));
+  }
   if (spec.grade) {
     for (const [k, v] of Object.entries(spec.grade)) post.grade.set(k, v);
   } else if (world.preset.grade) {
@@ -178,8 +259,16 @@ window.__COW = {
     const params = new URLSearchParams(location.search);
     const shotName = params.get('shot');
     if (shotName) {
-      const spec = await (await fetch(`/shots/${shotName}.json`)).json();
+      const spec = await (await fetch(asset(`shots/${shotName}.json`))).json();
       await applyShot(spec);
+    }
+    // Capture runs must stay deterministic, so gameplay only boots for players.
+    if (!shotName) {
+      input = new Input(renderer.domElement);
+      player = new Player(state.hero);
+      fx = new CombatFX(scene, camera, ots);
+      hud = new HUD();
+      startWave(3);
     }
     boot.classList.add('gone');
     frame();

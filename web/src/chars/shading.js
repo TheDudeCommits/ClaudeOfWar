@@ -35,6 +35,7 @@ uniform float uClumpNormal;
 uniform vec2  uHairDetailScale;
 uniform vec3  uHairRoot;
 uniform sampler2D uHairDetail;
+uniform float uHairDetailStrength;
 varying vec3 vHairObj;
 varying vec3 vHairNObj;
 varying vec3 vHairT;
@@ -47,6 +48,11 @@ vec4 cowStrand;
 vec3 cowClump;
 float cowCav;
 float cowAO;
+// Added to complete the derivative-filtered strand rewrite: the shading code
+// assigns both of these but the declarations were never emitted, which failed
+// compilation on every hair material.
+vec4 cowDeriv;   // d(angle)/dx, d(angle)/dy, d(y)/dx, d(y)/dy
+vec2 cowFade;    // per-octave undersampling fade (strand, clump)
 `;
 
 const HAIR_VERT_COMMON = /* glsl */`

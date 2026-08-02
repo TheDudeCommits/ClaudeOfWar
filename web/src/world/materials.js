@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { asset } from '../core/paths.js';
 import { SURFACE_PARAMS, DEFAULT_PARAMS } from './mat/params.js';
 import { injectSurfaceShader } from './mat/macro.js';
 
@@ -8,7 +9,7 @@ const cache = new Map();
 function tex(url, { srgb = false, repeat = 1 } = {}) {
   const key = url + srgb + repeat;
   if (cache.has(key)) return cache.get(key);
-  const t = loader.load(url);
+  const t = loader.load(asset(url));
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.repeat.setScalar(repeat);
   t.anisotropy = 8;
@@ -25,13 +26,13 @@ export function pbr(name, {
 } = {}) {
   const mat = new THREE.MeshStandardMaterial({
     color,
-    map: tex(`${base}/${name}_albedo.png`, { srgb: true, repeat }),
-    normalMap: tex(`${base}/${name}_normal.png`, { repeat }),
+    map: tex(`${base}/${name}_albedo.webp`, { srgb: true, repeat }),
+    normalMap: tex(`${base}/${name}_normal.webp`, { repeat }),
     // glTF-standard ORM packing: three pulls .r for AO, .g for roughness and
     // .b for metalness, so one texture serves all three slots.
-    aoMap: tex(`${base}/${name}_orm.png`, { repeat }),
-    roughnessMap: tex(`${base}/${name}_orm.png`, { repeat }),
-    metalnessMap: tex(`${base}/${name}_orm.png`, { repeat }),
+    aoMap: tex(`${base}/${name}_orm.webp`, { repeat }),
+    roughnessMap: tex(`${base}/${name}_orm.webp`, { repeat }),
+    metalnessMap: tex(`${base}/${name}_orm.webp`, { repeat }),
     roughness, metalness,
     normalScale: new THREE.Vector2(1, 1),
     // Indirect light is the only thing lifting shadowed stone off the floor of
@@ -47,8 +48,8 @@ export function pbr(name, {
   if (sheen > 0) { mat.sheen = sheen; mat.sheenRoughness = 0.75; }
 
   injectSurfaceShader(mat, {
-    macroMap: tex('/assets/tex/arena/macro_variation.png'),
-    detailMap: detail > 0 ? tex('/assets/tex/arena/detail_normal.png') : null,
+    macroMap: tex('/assets/tex/arena/macro_variation.webp'),
+    detailMap: detail > 0 ? tex('/assets/tex/arena/detail_normal.webp') : null,
     detailScale: detail, detailStrength,
     ...DEFAULT_PARAMS, ...macro,
   });

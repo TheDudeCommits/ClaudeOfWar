@@ -18,7 +18,7 @@ export const DEFAULT_PARAMS = {
   macroRough: 0.35,            // +/- added to roughness
   roughRemap: [0.58, 0.95],    // floor, ceiling
   wetThreshold: 0.20,          // mask value below which the surface reads wet
-  wetRough: 0.40,
+  wetRough: 0.54,
   wetDarken: 0.35,
 };
 
@@ -26,7 +26,7 @@ export const SURFACE_PARAMS = {
   // The ground is the largest object in frame and the worst offender, so it
   // gets the widest albedo swing and the most aggressive wet/dry zoning.
   ground: { macroScale: 0.30, macroAlbedo: [0.55, 1.15], macroRough: 0.40,
-            roughRemap: [0.60, 0.96], wetThreshold: 0.22, wetRough: 0.42, wetDarken: 0.40 },
+            roughRemap: [0.68, 0.97], wetThreshold: 0.20, wetRough: 0.56, wetDarken: 0.40 },
   rock:   { macroScale: 0.55, macroAlbedo: [0.66, 1.10], macroRough: 0.32,
             roughRemap: [0.58, 0.94], wetThreshold: 0.16, wetRough: 0.44, wetDarken: 0.26 },
   stone:  { macroScale: 0.60, macroAlbedo: [0.68, 1.12], macroRough: 0.30,

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { asset } from '../core/paths.js';
 
 /**
  * Ambient airborne particles — snow, ash, embers.
@@ -46,7 +47,7 @@ export const ATMOSPHERE_PRESETS = {
   /** Cold overcast ruin: dry snow, wind-driven, catching the low raking sun. */
   snow: {
     count: 640,
-    texture: '/assets/vfx/flake_atlas.png',
+    texture: '/assets/vfx/flake_atlas.webp',
     additive: false,
     sizeBase: 0.034,          // world-space sprite diameter, metres
     sizeVariance: 0.9,
@@ -68,7 +69,7 @@ export const ATMOSPHERE_PRESETS = {
   /** Ember hellscape: rising cinders, additive, deep into HDR so bloom bites. */
   ember: {
     count: 520,
-    texture: '/assets/vfx/ember_atlas.png',
+    texture: '/assets/vfx/ember_atlas.webp',
     additive: true,
     sizeBase: 0.028,
     sizeVariance: 1.15,
@@ -302,7 +303,7 @@ export function createAtmosphere(scene, opts = {}) {
 
   const loader = new THREE.TextureLoader();
   function loadAtlas(url) {
-    const t = loader.load(url);
+    const t = loader.load(asset(url));
     t.colorSpace = THREE.SRGBColorSpace;
     // flipY off keeps the atlas cell order identical to gen_sprites.py, so the
     // per-shell sprite bias above actually selects the sprite it names.
