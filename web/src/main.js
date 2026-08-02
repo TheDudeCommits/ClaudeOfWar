@@ -19,7 +19,7 @@ THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
 THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
 THREE.Mesh.prototype.raycast = acceleratedRaycast;
 import { Input, Player, Zombie, resolveBodies } from './game/gameplay.js';
-import { ClipAnimator, measureCycleDistance } from './anim/clips.js';
+import { ClipAnimator, measureCycleDistance, makeInPlace } from './anim/clips.js';
 import { CombatFX } from './game/fx.js';
 import { CombatDirector } from './game/director.js';
 import { HUD } from './ui/hud.js';
@@ -77,6 +77,16 @@ function spawnZombie(x, z) {
   scene.add(root);
   const zed = new Zombie(root);
   zed.director = director;   // grants/revokes the attack token
+  // The draugr share the hero's skeleton exactly, so the same authored clip
+  // drives them. Different tuning gives the lurch: arms hang further forward,
+  // elbows straighter, and the clip runs slower for the same ground speed.
+  if (state.clips && state.clips.length) {
+    zed.anim = new ClipAnimator(root, state.clips, {
+      metresPerCycle: state.cycleDist * 0.72,
+      armClose: 0.38,
+      elbowBend: 0.16,
+    });
+  }
   enemies.push(zed);
   return root;
 }
@@ -126,7 +136,10 @@ async function loadChars() {
   // legs were solved from a foot trajectory by Blender's IK and baked, so foot
   // planting is in the data rather than something the runtime fights for.
   const anims = await load(asset('assets/chars/hero_anims.glb'));
-  state.clips = anims.animations || [];
+  state.clips = (anims.animations || []).map(makeInPlace);
+  // Measured once from the clip and shared: playback rate = speed / this.
+  state.cycleDist = state.clips.length
+    ? measureCycleDistance(state.hero, state.clips[0]) : 1.0;
 
   setupHeroMaterials(state.hero);
   // World ambient and character ambient are separate problems. The scene needs
@@ -350,9 +363,9 @@ window.__COW = {
       addEventListener('keydown', unlock, { once: true });
       player = new Player(state.hero);
       if (state.clips.length) {
-        const dist = measureCycleDistance(state.hero, state.clips[0]);
-        player.anim = new ClipAnimator(state.hero, state.clips, { metresPerCycle: dist });
-        console.log('[anim] clip cycle distance', dist.toFixed(3), 'm');
+        player.anim = new ClipAnimator(state.hero, state.clips,
+          { metresPerCycle: state.cycleDist });
+        console.log('[anim] clip cycle distance', state.cycleDist.toFixed(3), 'm');
       }
       const w = weaponStats('axe');
       player.hitbox.reach = w.reach;

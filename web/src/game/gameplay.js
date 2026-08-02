@@ -172,7 +172,7 @@ export function resolveBodies(actors, dt) {
 
 export class Player extends Actor {
   constructor(root) {
-    super(root, { hp: 200, speed: 3.4, radius: 0.45, mass: 3.2 });
+    super(root, { hp: 200, speed: 2.7, radius: 0.45, mass: 3.2 });
     this.state = 'idle';
     this.t = 0;
     this.combo = 0;

@@ -369,8 +369,8 @@
       "id": "animation",
       "name": "Animation & Physics",
       "status": "review",
-      "round": 39,
-      "gap": "Clip pipeline is in place and foot-slide p90 improved 8.42 -> 5.26 m/s, but the clip still does not plant (median 3.66 vs target ~0) and the authored ARM channels are not reading in-game \u2014 characters still run with the 43-degree A-pose arms splayed.",
+      "round": 40,
+      "gap": "Arms FIXED and foot lift now natural (0.31m vs 0.61m), but stance-foot slip is still ~98% of body speed. The feet swing correctly and land at the right height; they do not hold position.",
       "shots": [
         {
           "path": "shots/round36/arena_ots.png",
@@ -418,6 +418,31 @@
           "round": 39,
           "verdict": "FAIL",
           "note": "Arm/spine authoring added to the Blender script but the channels are not visibly applying at runtime. Unresolved."
+        },
+        {
+          "round": 40,
+          "verdict": "FAIL",
+          "note": "Found a UNIT BUG in the Blender authoring: bone_len measured in armature space (leg=78.1) while IK empties are placed in world space (leg=0.78), so an authored 6cm foot lift asked the solver to raise the foot 10 METRES and it saturated. Fixed -> foot lift 0.92m -> 0.31m."
+        },
+        {
+          "round": 40,
+          "verdict": "FAIL",
+          "note": "IK constraint was on the FOOT with chain_count=2, which chains Foot->Leg and excludes the thigh, so the solver could only bend the knee. Moved to the shin with a thigh+shin chain."
+        },
+        {
+          "round": 40,
+          "verdict": "FAIL",
+          "note": "Playback rate was clamped to 3.0 while the required rate was speed/0.319 = 10.2 \u2014 the legs were hard-capped at a third of the cadence needed. That is why sweeping metresPerCycle gave a flat response."
+        },
+        {
+          "round": 40,
+          "verdict": "PASS",
+          "note": "ARMS FIXED: A-pose closed via runtime additive using the verified bind-axis machinery, after Blender-side arm authoring produced correct clip data (35.5deg off bind) that still read wrong. Applied to hero and all draugr."
+        },
+        {
+          "round": 40,
+          "verdict": "FAIL",
+          "note": "makeInPlace() (stripping Hips horizontal translation) made slip WORSE, 98% -> 117%. Written, measured, and deliberately not applied."
         }
       ],
       "brief": "Locomotion, attack sets, directional hit reactions, foot IK, ragdoll, cloth."

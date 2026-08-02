@@ -49,13 +49,29 @@ def find_rig():
 
 
 def bone_len(arm, a, b):
-    pa = arm.pose.bones[a].head
-    pb = arm.pose.bones[b].head
+    """Bone length in WORLD units.
+
+    pose_bone.head is in ARMATURE space. This rig is authored in centimetres
+    under a 0.01 world scale, so an armature-space length of 78 is 0.78m. The
+    IK empties live in world space, so mixing the two asked the foot to rise
+    ten metres and the solver simply saturated — which is why an authored 6cm
+    lift baked out as 0.92m.
+    """
+    pa = arm.matrix_world @ arm.pose.bones[a].head
+    pb = arm.matrix_world @ arm.pose.bones[b].head
     return (pa - pb).length
 
 
-def add_ik(arm, foot_bone, target_empty, chain=2):
-    pb = arm.pose.bones[foot_bone]
+def add_ik(arm, shin_bone, target_empty, chain=2):
+    """IK on the SHIN with a 2-bone chain (shin + thigh).
+
+    Constraining the FOOT with chain_count=2 chains Foot->Leg and leaves the
+    thigh out entirely, so the solver can only bend the knee. It cannot reach
+    the target, flails, and the resulting bake lifted the foot 0.92m against an
+    authored 0.06m. Constraining the shin is the conventional leg setup and
+    puts both thigh and shin under the solver.
+    """
+    pb = arm.pose.bones[shin_bone]
     for c in list(pb.constraints):
         pb.constraints.remove(c)
     ik = pb.constraints.new('IK')
@@ -103,13 +119,13 @@ def author_locomotion(arm, name, cycle_frames, stride, lift, bob, lean):
     # World-space rest positions give us the ground plane and the lateral
     # offset of each foot.
     lw = arm.matrix_world @ lf.head
-    rw = arm.matrix_world @ rf.head
+    rw = arm.matrix_world @ rf.head   # ankle position = shin tail
     ground = min(lw.z, rw.z)
 
     eL = make_empty('ik_L', lw)
     eR = make_empty('ik_R', rw)
-    add_ik(arm, 'LeftFoot', eL, chain=2)
-    add_ik(arm, 'RightFoot', eR, chain=2)
+    add_ik(arm, 'LeftLeg', eL, chain=2)
+    add_ik(arm, 'RightLeg', eR, chain=2)
 
     hips_rest_z = hips.location.z
 
@@ -203,8 +219,11 @@ def main():
 
     # Stride and clearance scale off the actual leg so the numbers transfer to
     # any rig this is run against.
-    author_locomotion(arm, 'run', 20, stride=leg * 0.72, lift=leg * 0.075,
-                      bob=leg * 0.05, lean=math.radians(7))
+        # Calibrated against MEASURED clip output, not against theory: the solver
+    # reaches roughly a third of the requested excursion, so the request is
+    # scaled to land the measured stance travel near 0.55m and lift near 0.14m.
+    author_locomotion(arm, 'run', 20, stride=leg * 3.40, lift=leg * 0.46,
+                      bob=leg * 0.045, lean=math.radians(7))
 
     out = os.path.join(CHARS, 'hero_anims.glb')
     bpy.ops.object.select_all(action='SELECT')
