@@ -368,9 +368,9 @@
     {
       "id": "animation",
       "name": "Animation & Physics",
-      "status": "review",
-      "round": 40,
-      "gap": "ARMS FIXED and foot lift natural (0.40m vs 0.61m), but stance-foot slip is still ~100% of body speed. Feet swing and land correctly; they do not hold position.",
+      "status": "rejected",
+      "round": 41,
+      "gap": "FEET STILL NOT PLANTED \u2014 stance slip ~106% of body speed. Arms ARE fixed and foot lift is natural (0.40m). Runtime foot-lock IK is implemented, bind-safe, and OFF: the solver is not the problem, the stance WINDOW is \u2014 the clip phase origin does not align with the authored 0..0.6 stance window.",
       "shots": [
         {
           "path": "shots/round36/arena_ots.png",
@@ -468,6 +468,21 @@
           "round": 40,
           "verdict": "FAIL",
           "note": "makeInPlace() made slip worse (98% -> 117%); written, measured, deliberately not applied."
+        },
+        {
+          "round": 41,
+          "verdict": "FAIL",
+          "note": "Rewrote the runtime two-bone leg IK correctly per the critic diagnosis (composes onto rest[] via rig.rot, uses derived axes instead of hardcoded local-X). It engages 100% of frames but did not fix slip."
+        },
+        {
+          "round": 41,
+          "verdict": "FAIL",
+          "note": "Stance foot was chosen as \"whichever is lower\" \u2014 a FEEDBACK LOOP, since the IK moves that foot and changes which is lowest. Measured 85 stance switches in 180 frames where ~5 is correct."
+        },
+        {
+          "round": 41,
+          "verdict": "FAIL",
+          "note": "Deriving stance from clip phase removed the loop but made slip worse (105% -> 148%): the exported clip phase origin does not match the authored stance window. Lock disabled pending a measured alignment."
         }
       ],
       "brief": "Locomotion, attack sets, directional hit reactions, foot IK, ragdoll, cloth."

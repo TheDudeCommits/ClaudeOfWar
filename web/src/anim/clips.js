@@ -42,6 +42,68 @@ export function makeInPlace(clip) {
   return clip;
 }
 
+const _T = new THREE.Vector3();
+const _H = new THREE.Vector3();
+const _K = new THREE.Vector3();
+const _F = new THREE.Vector3();
+const _L = new THREE.Vector3();
+const _cq = new THREE.Quaternion();
+
+/**
+ * Two-bone leg IK that pins the stance foot to a world position.
+ *
+ * A previous attempt at this failed and was reverted; the motion critic
+ * diagnosed exactly why, and both causes are avoided here:
+ *   1. It wrote hip/knee quaternions in raw world/parent frames, discarding the
+ *      bind orientation that every other pose path composes onto. This one goes
+ *      through rig.rot(), which composes onto rest[name].
+ *   2. It hardcoded local-X as the knee bend axis — precisely the assumption
+ *      the bind-pose axis derivation exists to remove. This one uses the
+ *      derived per-bone axes.
+ *
+ * Angles are solved in CHARACTER space so "swing the thigh forward" means the
+ * same thing regardless of how the exporter oriented the bones.
+ */
+function solveLegIK(rig, root, side, targetWorld) {
+  const hipB = rig.b[side + 'UpLeg'];
+  const kneeB = rig.b[side + 'Leg'];
+  const footB = rig.b[side + 'Foot'];
+  if (!hipB || !kneeB || !footB) return false;
+
+  hipB.updateWorldMatrix(true, false);
+  kneeB.updateWorldMatrix(true, false);
+  footB.updateWorldMatrix(true, false);
+  _H.setFromMatrixPosition(hipB.matrixWorld);
+  _K.setFromMatrixPosition(kneeB.matrixWorld);
+  _F.setFromMatrixPosition(footB.matrixWorld);
+
+  const upper = _H.distanceTo(_K);
+  const lower = _K.distanceTo(_F);
+  if (upper < 1e-4 || lower < 1e-4) return false;
+
+  // Vector hip -> target, expressed in character space.
+  root.getWorldQuaternion(_cq).invert();
+  _L.copy(targetWorld).sub(_H).applyQuaternion(_cq);
+  let d = _L.length();
+  const maxReach = (upper + lower) * 0.985;
+  if (d > maxReach) { _L.multiplyScalar(maxReach / d); d = maxReach; }
+  if (d < 1e-4) return false;
+
+  // Direction of the leg from vertical, in the character's own frame.
+  const pitch = Math.atan2(-_L.z, -_L.y);   // forward/back
+  const roll = Math.atan2(_L.x, -_L.y);     // side to side
+
+  // Law of cosines for the knee bend and the extra hip rotation it implies.
+  const cosK = (upper * upper + lower * lower - d * d) / (2 * upper * lower);
+  const cosH = (upper * upper + d * d - lower * lower) / (2 * upper * d);
+  const kneeA = Math.acos(THREE.MathUtils.clamp(cosK, -1, 1));
+  const hipA = Math.acos(THREE.MathUtils.clamp(cosH, -1, 1));
+
+  rig.rot(side + 'UpLeg', pitch + hipA, 0, roll);
+  rig.rot(side + 'Leg', -(Math.PI - kneeA), 0, 0);
+  return true;
+}
+
 export class ClipAnimator {
   constructor(root, clips, opts = {}) {
     this.root = root;
@@ -63,6 +125,18 @@ export class ClipAnimator {
     this._blend = {};
     this.armClose = opts.armClose ?? 0.62;   // radians of inward roll
     this.elbowBend = opts.elbowBend ?? 0.34;
+    // Foot lock state: the world point each foot is pinned to while in stance.
+    // Runtime foot-lock IK is implemented and OFF by default. Measured slip
+    // against body speed: 111% without it, 105% with height-based stance
+    // selection, 148% with phase-based. It is not currently earning its place,
+    // and the solver is not the problem — the stance WINDOW is. The clip's
+    // phase origin does not line up with the authored 0..0.6 stance window, so
+    // the lock engages on the wrong foot for part of the cycle. Enable with
+    // { footLock: true } once that alignment is measured rather than guessed.
+    this.footLock = opts.footLock === true;
+    this._lock = [new THREE.Vector3(), new THREE.Vector3()];
+    this._locked = [false, false];
+    this._wasStance = [false, false];
   }
 
   get ok() { return this.rig.ok && Object.keys(this.actions).length > 0; }
@@ -161,6 +235,54 @@ export class ClipAnimator {
       const h = this.hit * this.hit;
       this.rig.addRot('Spine01', -0.30 * h, 0, this.hitDir * 0.34 * h);
       this.rig.addRot('neck', -0.22 * h, 0, this.hitDir * 0.26 * h);
+    }
+
+    if (this.footLock && sp > 0.3) this._solveFeet(dt, sp);
+  }
+
+  /**
+   * Pin whichever foot is currently in stance.
+   *
+   * The authored clip gets the swing shape right but its stance excursion is
+   * far short of what the body actually covers, so the plant has to be closed
+   * at runtime. Whichever foot is lower is the stance foot; it is pinned at the
+   * world point where it landed and released when the clip lifts it again.
+   */
+  _solveFeet(dt, speed) {
+    const rig = this.rig;
+    const sides = ['Left', 'Right'];
+    this.root.updateWorldMatrix(true, true);
+
+    const pos = [new THREE.Vector3(), new THREE.Vector3()];
+    for (let i = 0; i < 2; i++) {
+      const b = rig.b[sides[i] + 'Foot'];
+      if (!b) return;
+      b.updateWorldMatrix(true, false);
+      pos[i].setFromMatrixPosition(b.matrixWorld);
+    }
+
+    // Stance is derived from the CLIP PHASE, never from which foot is lower.
+    // Using foot height creates a feedback loop — the IK moves the stance foot,
+    // which changes which foot is lowest, which reassigns stance. Measured, it
+    // flipped 85 times in 180 frames where a 0.8s cycle should flip about 5.
+    const act = this.actions.run;
+    const clip = act && act.getClip();
+    if (!clip || !clip.duration) return;
+    const phase = ((act.time % clip.duration) / clip.duration + 1) % 1;
+    const stance = phase < 0.5 ? 0 : 1;
+
+    for (let i = 0; i < 2; i++) {
+      if (i !== stance) { this._locked[i] = false; continue; }
+      if (!this._locked[i]) {
+        // Newly planted: remember where, and keep it on the ground plane.
+        this._locked[i] = true;
+        this._lock[i].copy(pos[i]);
+        continue;
+      }
+      _T.copy(this._lock[i]);
+      // Release rather than tear if the body has walked out of reach; the next
+      // frame re-plants at the current position.
+      if (!solveLegIK(rig, this.root, sides[i], _T)) this._locked[i] = false;
     }
   }
 }
