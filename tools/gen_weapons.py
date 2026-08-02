@@ -42,8 +42,9 @@ def bevel(obj, width=0.0035, segments=3, angle=40):
     md.segments = segments
     md.limit_method = 'ANGLE'
     md.angle_limit = math.radians(angle)
-    md.harden_normals = True
-    obj.data.use_auto_smooth = True if hasattr(obj.data, 'use_auto_smooth') else None
+    # `harden_normals` needs custom split normals, and `use_auto_smooth` was
+    # removed in Blender 4.1+ — shade_smooth() covers both on modern versions.
+    md.harden_normals = False
     return obj
 
 

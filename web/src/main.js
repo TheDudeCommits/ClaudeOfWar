@@ -12,6 +12,7 @@ import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
 import { Input, Player, Zombie } from './game/gameplay.js';
 import { CombatFX } from './game/fx.js';
 import { HUD } from './ui/hud.js';
+import { equip, weaponStats } from './game/weapons.js';
 
 const ARENA_PARTS = ['ground', 'stone', 'snow', 'dirt', 'timber', 'plank',
   'bark', 'iron', 'rope', 'cloth', 'thatch'];
@@ -95,6 +96,9 @@ async function loadChars() {
   // flat near-white paint the atlas actually contains.
   setupHeroMaterials(state.hero);
   scene.add(state.hero);
+  // The hero was empty-handed, which is a conspicuous miss for a God of War
+  // alike. Weapon choice also drives reach and damage.
+  state.weapon = await equip(state.hero, 'axe');
 
   const z = await load(asset('assets/chars/zombie_draugr.glb'));
   state.zombieProto = z.scene;
@@ -106,6 +110,7 @@ async function loadChars() {
   state.zombie = spawnZombie(-1.6, -4.2);
   ots.target = state.hero;
   ots.lockOn = state.zombie;
+  ots.occluders = [state.arena];
 }
 
 function resize() {
@@ -160,6 +165,7 @@ function frame() {
       player.update(sdt, input, camera, enemies, fx);
       for (const e of enemies) e.update(sdt, player, fx, enemies);
     }
+    ots.avoid = enemies.filter((e) => !e.dead).map((e) => e.root);
     const target = lockTarget();
     ots.lockOn = target ? target.root : null;
     hud.update(player, target);
@@ -278,6 +284,10 @@ window.__COW = {
     if (!shotName) {
       input = new Input(renderer.domElement);
       player = new Player(state.hero);
+      const w = weaponStats('axe');
+      player.hitbox.reach = w.reach;
+      player.hitbox.damage = w.damage;
+      ots.avoid = enemies.map((e) => e.root);
       fx = new CombatFX(scene, camera, ots);
       hud = new HUD();
       startWave(3);

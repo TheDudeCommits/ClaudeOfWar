@@ -5,19 +5,19 @@
       "id": "deploy",
       "name": "Playable Build (live)",
       "status": "passed",
-      "round": 22,
+      "round": 27,
       "gap": null,
       "win_note": "Live at https://thedudecommits.github.io/ClaudeOfWar/ \u2014 verified loading with zero asset failures and responding to input.",
       "shots": [
         {
-          "path": "shots/round22/arena_ots.png",
-          "label": "arena OTS \u00b7 DOF fixed (Performance)",
-          "round": 22
+          "path": "shots/round27/arena_ots.png",
+          "label": "arena OTS \u00b7 axe equipped, Fidelity",
+          "round": 27
         },
         {
-          "path": "shots/round23/arena_ots.png",
-          "label": "same frame at Fidelity",
-          "round": 23
+          "path": "shots/round22/arena_ots.png",
+          "label": "Performance preset",
+          "round": 22
         }
       ],
       "brief": "Shippable web build with quality settings.",
@@ -96,18 +96,18 @@
       "id": "render-stack",
       "name": "Render & Post Stack",
       "status": "review",
-      "round": 22,
+      "round": 27,
       "gap": "19.6% -> 3.0% of frame below luma 0.03, but the reference is 0.13% \u2014 the shadow ramp is still crushed relative to the plate.",
       "shots": [
         {
-          "path": "shots/round22/arena_ots.png",
-          "label": "arena OTS \u00b7 DOF fixed (Performance)",
-          "round": 22
+          "path": "shots/round27/arena_ots.png",
+          "label": "arena OTS \u00b7 axe equipped, Fidelity",
+          "round": 27
         },
         {
-          "path": "shots/round23/arena_ots.png",
-          "label": "same frame at Fidelity",
-          "round": 23
+          "path": "shots/round22/arena_ots.png",
+          "label": "Performance preset",
+          "round": 22
         }
       ],
       "history": [
@@ -194,18 +194,18 @@
       "id": "camera-rig",
       "name": "Camera Rig & Framing",
       "status": "review",
-      "round": 22,
-      "gap": null,
+      "round": 27,
+      "gap": "Occlusion added but untested under real combat crowding.",
       "shots": [
         {
-          "path": "shots/round22/arena_ots.png",
-          "label": "arena OTS \u00b7 DOF fixed (Performance)",
-          "round": 22
+          "path": "shots/round27/arena_ots.png",
+          "label": "arena OTS \u00b7 axe equipped, Fidelity",
+          "round": 27
         },
         {
-          "path": "shots/round23/arena_ots.png",
-          "label": "same frame at Fidelity",
-          "round": 23
+          "path": "shots/round22/arena_ots.png",
+          "label": "Performance preset",
+          "round": 22
         }
       ],
       "history": [
@@ -223,6 +223,11 @@
           "round": 9,
           "verdict": "FAIL",
           "note": "fixed: camera rides above the anchor. camY 1.69, tilt -5.6, area 24%. Art bible head band was my own bad estimate and was corrected against the plates."
+        },
+        {
+          "round": 27,
+          "verdict": "FAIL",
+          "note": "CRITIC: an enemy walking between camera and hero erased the player. Added arena sphere-cast + enemy sight-line push-in, fast snap / slow ease-out."
         }
       ],
       "brief": "Over-the-shoulder spring-arm rig, 50-62 FOV, hero at 22-35% of frame, lock-on, impact punch and shake."
@@ -231,18 +236,18 @@
       "id": "environment",
       "name": "Environment & Level Art",
       "status": "review",
-      "round": 22,
+      "round": 27,
       "gap": "Wet zones still throw a large blown specular field across the centre-right of the floor under the backlit sun.",
       "shots": [
         {
-          "path": "shots/round22/arena_ots.png",
-          "label": "arena OTS \u00b7 DOF fixed (Performance)",
-          "round": 22
+          "path": "shots/round27/arena_ots.png",
+          "label": "arena OTS \u00b7 axe equipped, Fidelity",
+          "round": 27
         },
         {
-          "path": "shots/round23/arena_ots.png",
-          "label": "same frame at Fidelity",
-          "round": 23
+          "path": "shots/round22/arena_ots.png",
+          "label": "Performance preset",
+          "round": 22
         }
       ],
       "history": [
@@ -273,18 +278,18 @@
       "id": "lighting",
       "name": "Lighting & Atmosphere",
       "status": "review",
-      "round": 22,
+      "round": 27,
       "gap": "Open floor still takes few cast shadows under the backlit sun.",
       "shots": [
         {
-          "path": "shots/round22/arena_ots.png",
-          "label": "arena OTS \u00b7 DOF fixed (Performance)",
-          "round": 22
+          "path": "shots/round27/arena_ots.png",
+          "label": "arena OTS \u00b7 axe equipped, Fidelity",
+          "round": 27
         },
         {
-          "path": "shots/round23/arena_ots.png",
-          "label": "same frame at Fidelity",
-          "round": 23
+          "path": "shots/round22/arena_ots.png",
+          "label": "Performance preset",
+          "round": 22
         }
       ],
       "history": [
@@ -305,18 +310,18 @@
       "id": "hero",
       "name": "Hero Characters",
       "status": "review",
-      "round": 22,
-      "gap": "Hair reads dark/muddy at combat range and the face still has blotchy patches from vertex classification.",
+      "round": 27,
+      "gap": "Hair still reads as opaque sawtooth plates rather than cards; face has hard patch boundaries where vertex classification leaks between skin and body groups.",
       "shots": [
         {
-          "path": "shots/round22/arena_ots.png",
-          "label": "arena OTS \u00b7 DOF fixed (Performance)",
-          "round": 22
+          "path": "shots/round27/arena_ots.png",
+          "label": "arena OTS \u00b7 axe equipped, Fidelity",
+          "round": 27
         },
         {
-          "path": "shots/round23/arena_ots.png",
-          "label": "same frame at Fidelity",
-          "round": 23
+          "path": "shots/round22/arena_ots.png",
+          "label": "Performance preset",
+          "round": 22
         }
       ],
       "history": [
@@ -334,6 +339,11 @@
           "round": 19,
           "verdict": "FAIL",
           "note": "strand density 360->190, SSS 0.70->0.34: hair now reads as hair, no longer a blown white blob"
+        },
+        {
+          "round": 27,
+          "verdict": "FAIL",
+          "note": "Leviathan axe equipped. Hand bone carries a tiny rig scale so the weapon parented at 1cm; grip is now solved analytically from a desired shaft direction rather than hand-tuned Eulers."
         }
       ],
       "brief": "Anime-styled fighters rendered with photoreal PBR+SSS. Hair cards, cloth, eyes. Judged on close-up."
@@ -342,18 +352,18 @@
       "id": "zombies",
       "name": "Zombie Enemies",
       "status": "review",
-      "round": 22,
+      "round": 27,
       "gap": "Reads as a small green figure at distance; silhouette and material need work at combat range.",
       "shots": [
         {
-          "path": "shots/round22/arena_ots.png",
-          "label": "arena OTS \u00b7 DOF fixed (Performance)",
-          "round": 22
+          "path": "shots/round27/arena_ots.png",
+          "label": "arena OTS \u00b7 axe equipped, Fidelity",
+          "round": 27
         },
         {
-          "path": "shots/round23/arena_ots.png",
-          "label": "same frame at Fidelity",
-          "round": 23
+          "path": "shots/round22/arena_ots.png",
+          "label": "Performance preset",
+          "round": 22
         }
       ],
       "history": [
@@ -369,18 +379,18 @@
       "id": "animation",
       "name": "Animation & Physics",
       "status": "review",
-      "round": 22,
+      "round": 27,
       "gap": "Procedural skeletal animation now drives the rig, but it is authored not captured \u2014 no mocap nuance.",
       "shots": [
         {
-          "path": "shots/round22/arena_ots.png",
-          "label": "arena OTS \u00b7 DOF fixed (Performance)",
-          "round": 22
+          "path": "shots/round27/arena_ots.png",
+          "label": "arena OTS \u00b7 axe equipped, Fidelity",
+          "round": 27
         },
         {
-          "path": "shots/round23/arena_ots.png",
-          "label": "same frame at Fidelity",
-          "round": 23
+          "path": "shots/round22/arena_ots.png",
+          "label": "Performance preset",
+          "round": 22
         }
       ],
       "history": [
@@ -396,18 +406,18 @@
       "id": "combat",
       "name": "Combat Feel",
       "status": "review",
-      "round": 22,
+      "round": 27,
       "gap": "Procedural attack motion only \u2014 the character GLBs ship one clip each, so there are no real attack/hit/death animations.",
       "shots": [
         {
-          "path": "shots/round22/arena_ots.png",
-          "label": "arena OTS \u00b7 DOF fixed (Performance)",
-          "round": 22
+          "path": "shots/round27/arena_ots.png",
+          "label": "arena OTS \u00b7 axe equipped, Fidelity",
+          "round": 27
         },
         {
-          "path": "shots/round23/arena_ots.png",
-          "label": "same frame at Fidelity",
-          "round": 23
+          "path": "shots/round22/arena_ots.png",
+          "label": "Performance preset",
+          "round": 22
         }
       ],
       "history": [
@@ -428,18 +438,18 @@
       "id": "vfx",
       "name": "VFX & Impact",
       "status": "review",
-      "round": 22,
+      "round": 27,
       "gap": "Particles are live but sparse at combat range; no near-camera occluders yet.",
       "shots": [
         {
-          "path": "shots/round22/arena_ots.png",
-          "label": "arena OTS \u00b7 DOF fixed (Performance)",
-          "round": 22
+          "path": "shots/round27/arena_ots.png",
+          "label": "arena OTS \u00b7 axe equipped, Fidelity",
+          "round": 27
         },
         {
-          "path": "shots/round23/arena_ots.png",
-          "label": "same frame at Fidelity",
-          "round": 23
+          "path": "shots/round22/arena_ots.png",
+          "label": "Performance preset",
+          "round": 22
         }
       ],
       "history": [

@@ -38,6 +38,12 @@ export class OTSCamera {
     this._init = false;
     this._seed = Math.random() * 1000;
     this._tmp = new THREE.Vector3();
+    // Occlusion: without this an enemy walking between camera and hero simply
+    // erases the player character.
+    this.occluders = [];        // meshes to sphere-cast against
+    this.avoid = [];            // actor roots to push away from
+    this._ray = new THREE.Raycaster();
+    this._curDist = this.distance;
   }
 
   /** Landed hit. amount 0..1. */
@@ -92,7 +98,30 @@ export class OTSCamera {
       Math.sin(yaw) * run,
       rise,
       Math.cos(yaw) * run);
-    cam.position.copy(this._pos).addScaledVector(dir, this.distance);
+
+    // Pull in until the line from the shoulder anchor to the camera is clear.
+    let want = this.distance;
+    if (this.occluders.length) {
+      this._ray.set(this._pos, dir);
+      this._ray.far = this.distance + 0.3;
+      const hits = this._ray.intersectObjects(this.occluders, true);
+      if (hits.length) want = Math.max(0.75, hits[0].distance - 0.28);
+    }
+    // Enemies are capsules, not geometry we want to raycast every frame; push
+    // the camera in when one is close to the sight line instead.
+    for (const a of this.avoid) {
+      if (!a || a === this.target) continue;
+      const to = this._tmp.copy(a.position).sub(this._pos);
+      const along = to.dot(dir);
+      if (along <= 0.2 || along > want) continue;
+      const perp = to.lengthSq() - along * along;
+      if (perp < 0.36) want = Math.min(want, Math.max(0.75, along - 0.45));
+    }
+    // Snap in fast so the hero is never hidden; ease back out so the frame does
+    // not pop when the obstruction clears.
+    const k = want < this._curDist ? 1 - Math.exp(-32 * dt) : 1 - Math.exp(-5 * dt);
+    this._curDist += (want - this._curDist) * k;
+    cam.position.copy(this._pos).addScaledVector(dir, this._curDist);
 
     // Trauma-squared so light hits stay subtle and heavy ones bite.
     this._trauma = Math.max(0, this._trauma - this.traumaDecay * dt);
