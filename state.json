@@ -370,7 +370,7 @@
       "name": "Animation & Physics",
       "status": "review",
       "round": 40,
-      "gap": "Arms FIXED and foot lift now natural (0.31m vs 0.61m), but stance-foot slip is still ~98% of body speed. The feet swing correctly and land at the right height; they do not hold position.",
+      "gap": "ARMS FIXED and foot lift natural (0.40m vs 0.61m), but stance-foot slip is still ~100% of body speed. Feet swing and land correctly; they do not hold position.",
       "shots": [
         {
           "path": "shots/round36/arena_ots.png",
@@ -443,6 +443,31 @@
           "round": 40,
           "verdict": "FAIL",
           "note": "makeInPlace() (stripping Hips horizontal translation) made slip WORSE, 98% -> 117%. Written, measured, and deliberately not applied."
+        },
+        {
+          "round": 40,
+          "verdict": "FAIL",
+          "note": "UNIT BUG in the Blender authoring: bone_len measured in armature space (leg=78.1) while IK empties are placed in world space (leg=0.78), so an authored 6cm lift asked the solver to raise the foot 10 METRES and it saturated. Foot lift 0.92m -> 0.40m."
+        },
+        {
+          "round": 40,
+          "verdict": "FAIL",
+          "note": "IK constraint was on the FOOT with chain_count=2 (Foot->Leg), excluding the thigh \u2014 the solver could only bend the knee. Moved to the shin with a thigh+shin chain."
+        },
+        {
+          "round": 40,
+          "verdict": "FAIL",
+          "note": "Playback rate clamped to 3.0 while the required rate was speed/0.319 = 10.2. Legs were capped at a third of the needed cadence, which is why sweeping metresPerCycle gave a flat response and misled me twice."
+        },
+        {
+          "round": 40,
+          "verdict": "PASS",
+          "note": "ARMS FIXED. A-pose closed with a runtime additive on the verified bind-axis machinery, applied to hero and all draugr."
+        },
+        {
+          "round": 40,
+          "verdict": "FAIL",
+          "note": "makeInPlace() made slip worse (98% -> 117%); written, measured, deliberately not applied."
         }
       ],
       "brief": "Locomotion, attack sets, directional hit reactions, foot IK, ragdoll, cloth."

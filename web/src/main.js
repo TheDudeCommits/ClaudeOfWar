@@ -136,7 +136,11 @@ async function loadChars() {
   // legs were solved from a foot trajectory by Blender's IK and baked, so foot
   // planting is in the data rather than something the runtime fights for.
   const anims = await load(asset('assets/chars/hero_anims.glb'));
-  state.clips = (anims.animations || []).map(makeInPlace);
+  // NOTE: makeInPlace() is exported but deliberately NOT applied. Stripping
+  // horizontal Hips translation took stance slip from 98% to 117% of body
+  // speed — that translation carries a real backward component rather than
+  // dragging the foot as I assumed. Measured, not reasoned.
+  state.clips = anims.animations || [];
   // Measured once from the clip and shared: playback rate = speed / this.
   state.cycleDist = state.clips.length
     ? measureCycleDistance(state.hero, state.clips[0]) : 1.0;

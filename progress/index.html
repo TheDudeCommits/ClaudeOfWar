@@ -158,11 +158,16 @@ footer{padding:26px 28px;color:#5d646e;font-size:11.5px}
 </div>
 </div></div>
 <div class=piece><div class=ph><span class=dot style='background:#a855f7'></span><span class=pn>Animation &amp; Physics</span><span class=st style='color:#a855f7'>in review</span><span class=rd>round 40</span></div><div class=pb>
-<div class=gap><b>Biggest remaining gap:</b> Arms FIXED and foot lift now natural (0.31m vs 0.61m), but stance-foot slip is still ~98% of body speed. The feet swing correctly and land at the right height; they do not hold position.</div>
+<div class=gap><b>Biggest remaining gap:</b> ARMS FIXED and foot lift natural (0.40m vs 0.61m), but stance-foot slip is still ~100% of body speed. Feet swing and land correctly; they do not hold position.</div>
 <div class=shots>
 <div class=shot><a href='../shots/round36/arena_ots.png' target=_blank><img src='../shots/round36/arena_ots.png' loading=lazy></a><div class=cap><span>r36 · baked char AO, ambient split, MSAA</span><span>r36</span></div></div>
 </div>
 <div class=hist>
+<div class=hr><span class=hn>r40</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>makeInPlace() made slip worse (98% -&gt; 117%); written, measured, deliberately not applied.</span></div>
+<div class=hr><span class=hn>r40</span><span class=hv style='color:#22c55e'>PASS</span><span class=ht>ARMS FIXED. A-pose closed with a runtime additive on the verified bind-axis machinery, applied to hero and all draugr.</span></div>
+<div class=hr><span class=hn>r40</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>Playback rate clamped to 3.0 while the required rate was speed/0.319 = 10.2. Legs were capped at a third of the needed cadence, which is why sweeping metresPerCycle gave a flat response and misled me twice.</span></div>
+<div class=hr><span class=hn>r40</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>IK constraint was on the FOOT with chain_count=2 (Foot-&gt;Leg), excluding the thigh — the solver could only bend the knee. Moved to the shin with a thigh+shin chain.</span></div>
+<div class=hr><span class=hn>r40</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>UNIT BUG in the Blender authoring: bone_len measured in armature space (leg=78.1) while IK empties are placed in world space (leg=0.78), so an authored 6cm lift asked the solver to raise the foot 10 METRES and it saturated. Foot lift 0.92m -&gt; 0.40m.</span></div>
 <div class=hr><span class=hn>r40</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>makeInPlace() (stripping Hips horizontal translation) made slip WORSE, 98% -&gt; 117%. Written, measured, and deliberately not applied.</span></div>
 <div class=hr><span class=hn>r40</span><span class=hv style='color:#22c55e'>PASS</span><span class=ht>ARMS FIXED: A-pose closed via runtime additive using the verified bind-axis machinery, after Blender-side arm authoring produced correct clip data (35.5deg off bind) that still read wrong. Applied to hero and all draugr.</span></div>
 <div class=hr><span class=hn>r40</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>Playback rate was clamped to 3.0 while the required rate was speed/0.319 = 10.2 — the legs were hard-capped at a third of the cadence needed. That is why sweeping metresPerCycle gave a flat response.</span></div>
@@ -172,10 +177,6 @@ footer{padding:26px 28px;color:#5d646e;font-size:11.5px}
 <div class=hr><span class=hn>r39</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>ClipAnimator + AnimationMixer wired; procedural code demoted to an additive layer (hit flinch, attack lean) per the critic. metresPerCycle measured from the clip (0.643m) — a 1.0 fallback was itself causing slide.</span></div>
 <div class=hr><span class=hn>r39</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>Mixamo unavailable (interactive download) and three ships no models, so clips are AUTHORED against our own rig in Blender instead of retargeted — no bone-mapping error. Foot trajectory drives Blender IK, baked to keyframes.</span></div>
 <div class=hr><span class=hn>r38</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>constant -0.25 on the forearm popped discontinuously at both ends of every swing (13 m/s weapon-tip spike, 6x per combo). Enveloped.</span></div>
-<div class=hr><span class=hn>r38</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>animator was fed intent velocity not realized displacement — 85% of pinned frames ran a full stride cycle going nowhere. Now fed realized delta.</span></div>
-<div class=hr><span class=hn>r38</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>velocity changes were single-frame step functions: dodge 3.44-&gt;8.44 m/s in ONE frame (~30g), lunge 0-&gt;4.4 (27g). Now ramped.</span></div>
-<div class=hr><span class=hn>r38</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>hipOffset was 100x off — rig authored in cm, code wrote metres: 0.55mm of bob against 55mm requested. Fixed by deriving units from world scale.</span></div>
-<div class=hr><span class=hn>r22</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>anim/procedural.js drives the humanoid rig directly: stride, knee bend, hip bob/roll, spine counter-rotation, attack wind-up/pass/settle, additive hit recoil, weighted death</span></div>
 </div>
 </div></div>
 <div class=piece><div class=ph><span class=dot style='background:#a855f7'></span><span class=pn>Combat Feel</span><span class=st style='color:#a855f7'>in review</span><span class=rd>round 38</span></div><div class=pb>
@@ -221,4 +222,4 @@ footer{padding:26px 28px;color:#5d646e;font-size:11.5px}
 <div class=hr><span class=hn>r37</span><span class=hv style='color:#ef4444'>FAIL</span><span class=ht>AudioEngine wired: impacts (inharmonic metal partials), whoosh, parry ring, hurt with master duck, footsteps driven off the animator stride phase, wind bed + drone. Verified by analyser: impact 0.703, parry 0.502, ambience 0.057.</span></div>
 </div>
 </div></div>
-</main><footer>auto-refreshes every 10s · generated 21:05:11</footer>
+</main><footer>auto-refreshes every 10s · generated 21:06:44</footer>
