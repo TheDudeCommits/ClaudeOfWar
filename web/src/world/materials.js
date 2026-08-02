@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { SURFACE_PARAMS, DEFAULT_PARAMS } from './mat/params.js';
+import { injectSurfaceShader } from './mat/macro.js';
 
 const loader = new THREE.TextureLoader();
 const cache = new Map();
@@ -15,44 +17,11 @@ function tex(url, { srgb = false, repeat = 1 } = {}) {
   return t;
 }
 
-/**
- * Detail-normal overlay. Tiling PBR maps read as mush at close range because the
- * texel density collapses; a high-frequency normal layered on top restores the
- * micro-surface that makes stone look like stone at 1.5 m. ART_BIBLE §7.
- */
-function injectDetailNormal(mat, detailMap, scale, strength) {
-  mat.userData.detailScale = { value: scale };
-  mat.userData.detailStrength = { value: strength };
-  mat.userData.detailMap = { value: detailMap };
-  mat.onBeforeCompile = (shader) => {
-    shader.uniforms.detailMap = mat.userData.detailMap;
-    shader.uniforms.detailScale = mat.userData.detailScale;
-    shader.uniforms.detailStrength = mat.userData.detailStrength;
-    shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', `#include <common>
-        uniform sampler2D detailMap;
-        uniform float detailScale;
-        uniform float detailStrength;`)
-      // Replace the chunk rather than appending to it, so the detail normal is
-      // summed in tangent space before the TBN transform. In three r185 `tbn`
-      // is always defined under USE_NORMALMAP_TANGENTSPACE — from vTangent when
-      // the geometry has tangents, otherwise from a derivative-based frame.
-      .replace('#include <normal_fragment_maps>', `
-        #ifdef USE_NORMALMAP_TANGENTSPACE
-          vec3 mapN = texture2D( normalMap, vNormalMapUv ).xyz * 2.0 - 1.0;
-          vec3 detN = texture2D( detailMap, vNormalMapUv * detailScale ).xyz * 2.0 - 1.0;
-          mapN.xy += detN.xy * detailStrength;
-          mapN.xy *= normalScale;
-          normal = normalize( tbn * mapN );
-        #endif`);
-  };
-  mat.customProgramCacheKey = () => `detail${scale}${strength}`;
-}
-
 /** Build a PBR material from the albedo/normal/ORM triplet the bake produced. */
 export function pbr(name, {
   base = '/assets/tex/arena', repeat = 1, detail = 14, detailStrength = 0.45,
-  roughness = 1, metalness = 1, color = 0xffffff, sheen = 0, extra = {},
+  roughness = 1, metalness = 1, color = 0xffffff, sheen = 0,
+  env = 0.82, ao = 1.0, macro = {}, extra = {},
 } = {}) {
   const mat = new THREE.MeshStandardMaterial({
     color,
@@ -65,38 +34,59 @@ export function pbr(name, {
     metalnessMap: tex(`${base}/${name}_orm.png`, { repeat }),
     roughness, metalness,
     normalScale: new THREE.Vector2(1, 1),
-    envMapIntensity: 1.0,
+    // Indirect light is the only thing lifting shadowed stone off the floor of
+    // the histogram; at 1.0 the frame measured a 0.109 black point with no deep
+    // shadow anywhere. Trimming env on the environment (not the hero) buys the
+    // contrast back without crushing anything to zero.
+    envMapIntensity: env,
     ...extra,
   });
   // The bake wrote AO into UV0, not a second channel.
   mat.aoMap.channel = 0;
-  mat.aoMapIntensity = 0.85;
+  mat.aoMapIntensity = ao;
   if (sheen > 0) { mat.sheen = sheen; mat.sheenRoughness = 0.75; }
-  if (detail > 0) {
-    injectDetailNormal(mat, tex('/assets/tex/arena/detail_normal.png'), detail, detailStrength);
-  }
+
+  injectSurfaceShader(mat, {
+    macroMap: tex('/assets/tex/arena/macro_variation.png'),
+    detailMap: detail > 0 ? tex('/assets/tex/arena/detail_normal.png') : null,
+    detailScale: detail, detailStrength,
+    ...DEFAULT_PARAMS, ...macro,
+  });
   return mat;
 }
 
 /**
  * Surface table. Roughness/metalness come from the ORM maps; the multipliers
  * here only trim them. Constant roughness is an automatic fail (ART_BIBLE §12),
- * so every entry keeps its map.
+ * so every entry keeps its map — and every entry now also carries the
+ * world-space macro breakup (see mat/macro.js), because a single tiling scale
+ * is just as much of a tell as a single roughness value.
  */
 export const SURFACES = {
-  stone:  () => pbr('stone',  { repeat: 3, detail: 18, detailStrength: 0.5 }),
-  rock:   () => pbr('rock',   { repeat: 2, detail: 16, detailStrength: 0.55 }),
-  ground: () => pbr('rock',   { repeat: 8, detail: 22, detailStrength: 0.5 }),
-  dirt:   () => pbr('dirt',   { repeat: 6, detail: 20, detailStrength: 0.45 }),
+  stone:  () => pbr('stone',  { repeat: 3, detail: 18, detailStrength: 0.5,
+            macro: SURFACE_PARAMS.stone }),
+  rock:   () => pbr('rock',   { repeat: 2, detail: 16, detailStrength: 0.55,
+            macro: SURFACE_PARAMS.rock }),
+  ground: () => pbr('rock',   { repeat: 8, detail: 22, detailStrength: 0.5,
+            macro: SURFACE_PARAMS.ground }),
+  dirt:   () => pbr('dirt',   { repeat: 6, detail: 20, detailStrength: 0.45,
+            macro: SURFACE_PARAMS.dirt }),
   snow:   () => pbr('snow',   { repeat: 5, detail: 26, detailStrength: 0.3,
-            extra: { color: 0xf2f6ff } }),
-  timber: () => pbr('timber', { repeat: 2, detail: 12, detailStrength: 0.4 }),
-  plank:  () => pbr('plank',  { repeat: 2, detail: 12, detailStrength: 0.4 }),
-  bark:   () => pbr('bark',   { repeat: 3, detail: 14, detailStrength: 0.6 }),
-  iron:   () => pbr('iron',   { repeat: 2, detail: 10, detailStrength: 0.35 }),
-  rope:   () => pbr('rope',   { repeat: 4, detail: 8,  detailStrength: 0.5 }),
-  cloth:  () => pbr('cloth',  { repeat: 3, detail: 10, detailStrength: 0.3, sheen: 0.6 }),
-  thatch: () => pbr('thatch', { repeat: 4, detail: 14, detailStrength: 0.55 }),
+            macro: SURFACE_PARAMS.snow, extra: { color: 0xe8eef8 } }),
+  timber: () => pbr('timber', { repeat: 2, detail: 12, detailStrength: 0.4,
+            macro: SURFACE_PARAMS.wood }),
+  plank:  () => pbr('plank',  { repeat: 2, detail: 12, detailStrength: 0.4,
+            macro: SURFACE_PARAMS.wood }),
+  bark:   () => pbr('bark',   { repeat: 3, detail: 14, detailStrength: 0.6,
+            macro: SURFACE_PARAMS.wood }),
+  iron:   () => pbr('iron',   { repeat: 2, detail: 10, detailStrength: 0.35,
+            macro: SURFACE_PARAMS.iron }),
+  rope:   () => pbr('rope',   { repeat: 4, detail: 8,  detailStrength: 0.5,
+            macro: SURFACE_PARAMS.fibre }),
+  cloth:  () => pbr('cloth',  { repeat: 3, detail: 10, detailStrength: 0.3,
+            sheen: 0.6, macro: SURFACE_PARAMS.fibre }),
+  thatch: () => pbr('thatch', { repeat: 4, detail: 14, detailStrength: 0.55,
+            macro: SURFACE_PARAMS.fibre }),
 };
 
 export function surface(name) {

@@ -5,13 +5,13 @@
       "id": "render-stack",
       "name": "Render & Post Stack",
       "status": "review",
-      "round": 9,
-      "gap": "black_point is 0.109 against a band of 0.005-0.060 \u2014 the frame is milky and holds no deep shadow anywhere.",
+      "round": 11,
+      "gap": "black_point 0.0855 vs band 0.005-0.060 \u2014 indirect fill still lifts the darkest 0.1% of the frame; nothing is genuinely dark.",
       "shots": [
         {
-          "path": "shots/round9/arena_ots.png",
-          "label": "arena OTS \u00b7 framing + grade fixed",
-          "round": 9
+          "path": "shots/round11/arena_ots.png",
+          "label": "arena OTS \u00b7 macro variation wired",
+          "round": 11
         }
       ],
       "history": [
@@ -44,6 +44,11 @@
           "round": 9,
           "verdict": "FAIL",
           "note": "grade reordered S-curve->lift->tint: sat_p95 1.000->0.55 (was the only outright band failure), pure_white 0.0024->0.00038"
+        },
+        {
+          "round": 11,
+          "verdict": "FAIL",
+          "note": "6/7 objective gates pass; black_point is the last one out"
         }
       ],
       "brief": "ACES tonemap, SSAO/SSIL/SSR, volumetric fog, bloom, DOF, CA, grain, vignette, colour grade. Judged on a fixed grey-box scene for mood and grade only."
@@ -83,19 +88,19 @@
     {
       "id": "environment",
       "name": "Environment & Level Art",
-      "status": "building",
-      "round": 10,
-      "gap": "CRITIC #1 GAP: no macro-scale variation. macro_variation.png was baked and never wired; ground autocorrelation lag-4 r=0.94 vs reference 0.756. Builder running.",
+      "status": "review",
+      "round": 11,
+      "gap": "Wet zones still throw a large blown specular field across the centre-right of the floor under the backlit sun.",
       "shots": [
         {
-          "path": "shots/round7/blind_gow5_match.png",
-          "label": "BLIND A/B vs Gow5.jpg \u2014 critic identified ours instantly",
-          "round": 7
+          "path": "shots/round11/arena_ots.png",
+          "label": "arena OTS \u00b7 macro variation wired",
+          "round": 11
         },
         {
-          "path": "shots/round9/arena_ots.png",
-          "label": "arena OTS \u00b7 framing + grade fixed",
-          "round": 9
+          "path": "shots/round7/blind_gow5_match.png",
+          "label": "BLIND A/B vs Gow5.jpg \u2014 critic ID'd ours instantly",
+          "round": 7
         }
       ],
       "history": [
@@ -108,6 +113,16 @@
           "round": 7,
           "verdict": "FAIL",
           "note": "CRITIC: ground is one tiling texture at one scale across 45% of frame; sunlit cobble luma 0.914 mirrors the sun into glitter"
+        },
+        {
+          "round": 10,
+          "verdict": "FAIL",
+          "note": "macro wired but wetRough 0.18 turned the ground into a mirror \u2014 pure_white 0.0004 -> 0.0206 (54x regression)"
+        },
+        {
+          "round": 11,
+          "verdict": "FAIL",
+          "note": "wetRough 0.40 + tighter thresholds: pure_white back to 0.0018, contrast 0.80 -> 0.635. 6 of 7 gates in band."
         }
       ],
       "brief": "Nordic ruin arena: modular stone/wood kit, terrain, cliffs, snow, debris, decals, water. Four readable depth planes."
@@ -116,13 +131,13 @@
       "id": "lighting",
       "name": "Lighting & Atmosphere",
       "status": "review",
-      "round": 9,
-      "gap": "Ambient fill is washing out every shadow \u2014 nothing in frame is genuinely dark.",
+      "round": 11,
+      "gap": "Ambient fill trimmed (hemi 0.5->0.28, env 0.52->0.38) but black point still 0.0855.",
       "shots": [
         {
-          "path": "shots/round9/arena_ots.png",
-          "label": "arena OTS \u00b7 framing + grade fixed",
-          "round": 9
+          "path": "shots/round11/arena_ots.png",
+          "label": "arena OTS \u00b7 macro variation wired",
+          "round": 11
         }
       ],
       "history": [
@@ -142,9 +157,9 @@
     {
       "id": "hero",
       "name": "Hero Characters",
-      "status": "building",
+      "status": "blocked",
       "round": 8,
-      "gap": "BIGGEST GAP OVERALL: hair renders as a flat blown-white blob. The generated texture atlas has no strand detail in the hair regions \u2014 it is flat near-white paint. Needs regeneration or hair-card authoring.",
+      "gap": "Builder killed mid-task by a session limit. chars/ modules (index.js, shading.js, segment.js, atlas.js) on disk but NOT wired \u2014 last report said hair was aliasing into hard zebra stripes and it was rewriting with derivative-based filtering.",
       "shots": [
         {
           "path": "shots/round16/char_hero_closeup.png",
@@ -206,9 +221,9 @@
     {
       "id": "vfx",
       "name": "VFX & Impact",
-      "status": "building",
+      "status": "blocked",
       "round": 10,
-      "gap": "Zero particles in the entire scene (probe: 0 Points, 0 Sprites). flake.png and ember.png baked and never loaded. Empty air is an instant-fail tell. Builder running.",
+      "gap": "Builder was killed mid-task by a session limit. atmosphere.js (17KB) is on disk but NOT wired into main.js \u2014 dormant, not yet verified.",
       "shots": [],
       "history": [
         {

@@ -30,6 +30,8 @@ uniform float uStrandNormal;
 uniform float uStrandContrast;
 uniform float uHairAO;
 uniform float uHairBreak;
+uniform float uClumpScale;
+uniform float uClumpNormal;
 uniform vec2  uHairDetailScale;
 uniform vec3  uHairRoot;
 uniform sampler2D uHairDetail;
@@ -41,6 +43,8 @@ float cowHash( float n ) { return fract( sin( n * 12.9898 ) * 43758.5453123 ); }
 
 // across-strand coord, object Y, fraction within strand, strand id
 vec4 cowStrand;
+// cavity within the lock, fraction across the lock, lock id
+vec3 cowClump;
 float cowCav;
 float cowAO;
 `;
@@ -76,27 +80,63 @@ const HAIR_ALBEDO = /* glsl */`
 {
 	vec3 hq = vHairObj - uHairPivot;
 	float ang = atan( hq.z, hq.x );
-	float across = ang * uStrandDensity + hq.y * uStrandTwist;
-	float sid = floor( across );
-	cowStrand = vec4( across, hq.y, across - sid, sid );
+	float aRaw = ang * uStrandDensity + hq.y * uStrandTwist;
+
+	// Analytic d(atan2)/d(screen). Needed twice: to filter the strand pattern
+	// (see below) and to hand textureGrad usable derivatives — plain fwidth of
+	// atan2 spikes at the angular seam behind the head and would print a bright
+	// line down the back of the hair.
+	vec2 dqx = dFdx( hq.xz ), dqy = dFdy( hq.xz );
+	float r2 = max( dot( hq.xz, hq.xz ), 1e-6 );
+	float dYx = dFdx( hq.y ), dYy = dFdy( hq.y );
+	float dAx = ( hq.x * dqx.y - hq.z * dqx.x ) / r2 * uStrandDensity + dYx * uStrandTwist;
+	float dAy = ( hq.x * dqy.y - hq.z * dqy.x ) / r2 * uStrandDensity + dYy * uStrandTwist;
+	cowDeriv = vec4( dAx, dAy, dYx, dYy );
+
+	// Strands per pixel. Once a strand is thinner than a texel the ridge pattern
+	// aliases into hard zebra banding, so fade each octave out as it undersamples
+	// and let the (mip-filtered) detail map carry that scale instead.
+	float aw = abs( dAx ) + abs( dAy );
+	cowFade = vec2( 1.0 - smoothstep( 0.28, 1.05, aw ),
+	                1.0 - smoothstep( 0.28, 1.05, aw * uClumpScale ) );
+
+	// Two scales, because hair separates into locks first and strands second.
+	// A single uniform ridge frequency reads as corduroy, not hair.
+	float cA = aRaw * uClumpScale;
+	float cid = floor( cA );
+	float cf = cA - cid;
+	float ch = cowHash( cid * 1.7 + 4.2 );
+	float clumpCav = 1.0 - pow( abs( 2.0 * cf - 1.0 ), 2.6 );
+	cowClump = vec3( clumpCav, cf, cid );
+
+	// jitter the strand phase per lock so widths vary instead of ruling
+	float aW = aRaw + ( ch - 0.5 ) * 1.3;
+	float sid = floor( aW );
+	cowStrand = vec4( aRaw, hq.y, aW - sid, sid );
 
 	float h1 = cowHash( sid );
 	float h2 = cowHash( sid + 91.7 );
 
 	// rounded strand cross-section: bright on the crown of the strand, dark in
 	// the gap between strands. This is what turns a shell into readable hair.
-	cowCav = 1.0 - pow( abs( 2.0 * cowStrand.z - 1.0 ), 1.7 );
+	cowCav = 1.0 - pow( abs( 2.0 * cowStrand.z - 1.0 ), 2.2 );
 
-	// clumps break along their length instead of ruling continuous lines
+	// locks break along their length instead of ruling continuous lines
 	float brk = 0.5 + 0.5 * sin( hq.y * ( 26.0 + 20.0 * h2 ) + h1 * 43.0 );
+	brk *= 0.55 + 0.45 * ( 0.5 + 0.5 * sin( hq.y * ( 7.0 + 5.0 * ch ) + ch * 61.0 ) );
 
 	// cheap volumetric AO: inner shells face back toward the body axis
 	float outward = dot( normalize( vHairNObj ),
 		normalize( vec3( hq.x, hq.y * 0.18, hq.z ) + vec3( 1e-5 ) ) );
 	cowAO = mix( 1.0 - uHairAO, 1.0, smoothstep( -0.45, 0.55, outward ) );
 
-	float shade = mix( 0.50, 1.16, cowCav )
-	            * mix( 0.78, 1.16, h1 )
+	// Keep the ALBEDO modulation gentle. Hair separates because light travels
+	// along it, not because it is painted in stripes — the heavy lifting belongs
+	// to the normal and roughness below. Overdo it here and it reads as fabric.
+	float shade = mix( 1.0, mix( 0.90, 1.04, cowCav ), cowFade.x )
+	            * mix( 1.0, mix( 0.80, 1.05, clumpCav ), cowFade.y )
+	            * mix( 1.0, mix( 0.88, 1.10, h1 ), cowFade.x )
+	            * mix( 1.0, mix( 0.90, 1.05, ch ), cowFade.y )
 	            * mix( 1.0 - uHairBreak, 1.0 + uHairBreak * 0.25, brk );
 
 	diffuseColor.rgb *= mix( 1.0, shade * cowAO, uStrandContrast );
@@ -108,8 +148,11 @@ const HAIR_ALBEDO = /* glsl */`
 `;
 
 const HAIR_ROUGH = /* glsl */`
-roughnessFactor *= mix( 0.70, 1.34, cowHash( cowStrand.w + 313.0 ) );
-roughnessFactor += 0.18 * ( 1.0 - cowCav );
+// Per-strand and per-lock gloss variation is what breaks the highlight into
+// separate travelling glints instead of one plastic sheet.
+roughnessFactor *= mix( 1.0, mix( 0.66, 1.32, cowHash( cowStrand.w + 313.0 ) ), cowFade.x );
+roughnessFactor *= mix( 1.0, mix( 0.80, 1.20, cowHash( cowClump.z * 1.7 + 77.0 ) ), cowFade.y );
+roughnessFactor += 0.24 * ( 1.0 - cowClump.x ) * cowFade.y;
 roughnessFactor = clamp( roughnessFactor, 0.05, 1.0 );
 `;
 
@@ -120,24 +163,15 @@ const HAIR_NORMAL = /* glsl */`
 	hT = normalize( hT );
 	vec3 hS = normalize( cross( normal, hT ) );
 
-	vec3 hq = vHairObj - uHairPivot;
-	// analytic d(atan2)/d(screen) so the strand map does not blow its mip
-	// selection at the angular seam behind the head
-	vec2 dqx = dFdx( hq.xz ), dqy = dFdy( hq.xz );
-	float r2 = max( dot( hq.xz, hq.xz ), 1e-6 );
-	float dAx = ( hq.x * dqx.y - hq.z * dqx.x ) / r2;
-	float dAy = ( hq.x * dqy.y - hq.z * dqy.x ) / r2;
-	float dYx = dFdx( hq.y ), dYy = dFdy( hq.y );
-
 	vec2 sUv = vec2( cowStrand.x * uHairDetailScale.x, cowStrand.y * uHairDetailScale.y );
-	vec2 dUx = vec2( ( dAx * uStrandDensity + dYx * uStrandTwist ) * uHairDetailScale.x,
-	                 dYx * uHairDetailScale.y );
-	vec2 dUy = vec2( ( dAy * uStrandDensity + dYy * uStrandTwist ) * uHairDetailScale.x,
-	                 dYy * uHairDetailScale.y );
+	vec2 dUx = vec2( cowDeriv.x * uHairDetailScale.x, cowDeriv.z * uHairDetailScale.y );
+	vec2 dUy = vec2( cowDeriv.y * uHairDetailScale.x, cowDeriv.w * uHairDetailScale.y );
 	vec3 dn = textureGrad( uHairDetail, sUv, dUx, dUy ).xyz * 2.0 - 1.0;
 
-	float slope = - ( 2.0 * cowStrand.z - 1.0 ) * uStrandNormal;
-	normal = normalize( normal + hT * ( slope + dn.x * 1.4 ) + hS * ( dn.y * 0.30 ) );
+	float slopeS = - ( 2.0 * cowStrand.z - 1.0 ) * uStrandNormal * cowFade.x;
+	float slopeC = - ( 2.0 * cowClump.y - 1.0 ) * uClumpNormal * cowFade.y;
+	normal = normalize( normal + hT * ( slopeS + slopeC + dn.x * uHairDetailStrength )
+	                           + hS * ( dn.y * 0.28 ) );
 
 	// Anisotropic GGX stretches the highlight along tbn[0]; pointing that across
 	// the strands gives the band that travels around the head.
@@ -176,6 +210,21 @@ const SKIN_COMMON = /* glsl */`
 uniform vec3  uSssColor;
 uniform float uSssStrength;
 uniform float uSssWrap;
+uniform float uSkinSat;
+uniform float uSkinMottle;
+`;
+
+const SKIN_ALBEDO = /* glsl */`
+{
+	// Slow pigment mottling — even skin tone across a whole limb is the thing
+	// that reads as vinyl. Blotch it at ~10 cm scale before anything else.
+	float m = texture2D( normalMap, vNormalMapUv * 0.031 ).g;
+	float m2 = texture2D( normalMap, vNormalMapUv * 0.009 ).b;
+	diffuseColor.rgb *= mix( 1.0 - uSkinMottle, 1.0 + uSkinMottle, m );
+	diffuseColor.r *= mix( 1.0 - uSkinMottle * 0.7, 1.0 + uSkinMottle * 0.7, m2 );
+	float lum = dot( diffuseColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) );
+	diffuseColor.rgb = mix( vec3( lum ), diffuseColor.rgb, uSkinSat );
+}
 `;
 
 /**
@@ -200,7 +249,7 @@ function skinLightingChunk() {
 		vec3 sss = ( wrapNL - dotNL ) * directLight.color;
 		reflectedLight.directDiffuse += sss * BRDF_Lambert( material.diffuseContribution * uSssColor ) * uSssStrength;
 	}`;
-  return assertPatched(src, src.replace(anchor, patched), 'skin wrapped diffuse');
+  return assertPatched(src, src.replace(anchor, () => patched), 'skin wrapped diffuse');
 }
 
 const SKIN_SHADE = /* glsl */`
@@ -221,10 +270,11 @@ export function injectSkin(mat, uniforms) {
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', () => '#include <common>\n' + SKIN_COMMON)
       .replace('#include <lights_physical_pars_fragment>', () => skinLightingChunk())
+      .replace('#include <map_fragment>', () => '#include <map_fragment>\n' + SKIN_ALBEDO)
       .replace('#include <roughnessmap_fragment>',
         () => '#include <roughnessmap_fragment>\n' + SKIN_SHADE);
   };
-  mat.customProgramCacheKey = () => 'cow-skin-v3';
+  mat.customProgramCacheKey = () => 'cow-skin-v4';
   return mat;
 }
 
@@ -235,12 +285,21 @@ uniform float uMetalBias;
 uniform float uWear;
 uniform float uRoughLow;
 uniform float uRoughHigh;
+uniform float uAlbedoFloor;
+uniform float uAlbedoGamma;
 float cowBodyMetal;
 float cowBodyCurv;
 `;
 
 const BODY_ALBEDO = /* glsl */`
 {
+	// The generator painted cloth almost at zero and then compensated with a
+	// full-albedo emissive. With the emissive (correctly) gone, those regions
+	// read as holes. ART_BIBLE §7 wants 0.04–0.85 linear and no pure black, so
+	// remap the range instead of leaving it crushed.
+	diffuseColor.rgb = uAlbedoFloor + diffuseColor.rgb * ( 1.0 - uAlbedoFloor );
+	diffuseColor.rgb = pow( diffuseColor.rgb, vec3( uAlbedoGamma ) );
+
 	float mx = max( max( diffuseColor.r, diffuseColor.g ), diffuseColor.b );
 	float mn = min( min( diffuseColor.r, diffuseColor.g ), diffuseColor.b );
 	float sat = mx > 1e-4 ? ( mx - mn ) / mx : 0.0;

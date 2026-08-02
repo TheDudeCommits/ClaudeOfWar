@@ -9,35 +9,42 @@ const ASSETS = '/assets/chars';
 
 export const HERO_TUNING = {
   hair: {
-    color: 0xc6bdb2,          // pulls the atlas' near-white down to ~0.62 grey
-    root: 0x5c4c3e,           // warm dark for roots / interior
-    roughness: 0.34,
+    color: 0xb6aa9c,          // pulls the atlas' near-white down to ~0.62 grey
+    root: 0x53442f,           // warm dark for roots / interior
+    roughness: 0.40,
     anisotropy: 0.9,
     sheen: 0.55,
     sheenColor: 0xe3d3bc,
     sheenRoughness: 0.35,
+    specularIntensity: 0.85,
     envMapIntensity: 1.0,
-    strands: 192,             // strands around the body axis
+    strands: 360,             // strands around the body axis
+    clumpScale: 1 / 6,        // 6 strands per lock
+    clumpNormal: 0.52,
     twist: 5.0,
-    normalStrength: 0.60,
-    contrast: 1.0,
-    ao: 0.62,
-    breakup: 0.20,
-    detailAcross: 1 / 64,     // strand map holds 64 strands across U -> 3 wraps
-    detailAlong: 3.0,
+    normalStrength: 0.20,
+    contrast: 0.95,
+    ao: 0.58,
+    breakup: 0.26,
+    detailAcross: 1 / 64,     // strand map holds 64 strands across U
+    detailAlong: 6.0,
     pivot: [0, 1.45, 0],
   },
   skin: {
-    color: 0xffffff,
+    // Real skin diffuse albedo lands ~0.30–0.50 linear. The generated atlas
+    // paints it near 0.9, which is the whole reason it reads as pink vinyl.
+    color: 0xbcc0c4,
     roughness: 0.50,
     sssColor: 0xc4544a,       // ART_BIBLE §7
-    sssStrength: 0.95,
-    sssWrap: 0.45,
+    sssStrength: 0.70,
+    sssWrap: 0.42,
+    skinSat: 0.86,
+    skinMottle: 0.12,
     poreRepeat: 64,
     poreScale: 0.55,
-    sheen: 0.22,
+    sheen: 0.10,
     sheenColor: 0xffb49a,
-    specularIntensity: 0.62,
+    specularIntensity: 0.55,
     envMapIntensity: 0.9,
   },
   body: {
@@ -48,6 +55,8 @@ export const HERO_TUNING = {
     roughHigh: 0.90,
     wear: 0.55,
     metalBias: 0.0,
+    albedoFloor: 0.045,
+    albedoGamma: 0.82,
     sheen: 0.18,
     envMapIntensity: 0.95,
   },
@@ -194,6 +203,8 @@ export function setupHeroMaterials(root, tuning = HERO_TUNING) {
     uWear: { value: t.body.wear },
     uRoughLow: { value: t.body.roughLow },
     uRoughHigh: { value: t.body.roughHigh },
+    uAlbedoFloor: { value: t.body.albedoFloor },
+    uAlbedoGamma: { value: t.body.albedoGamma },
   };
   const body = new THREE.MeshPhysicalMaterial({
     ...common,
@@ -219,6 +230,8 @@ export function setupHeroMaterials(root, tuning = HERO_TUNING) {
     uStrandContrast: { value: t.hair.contrast },
     uHairAO: { value: t.hair.ao },
     uHairBreak: { value: t.hair.breakup },
+    uClumpScale: { value: t.hair.clumpScale },
+    uClumpNormal: { value: t.hair.clumpNormal },
     uHairDetailScale: { value: new THREE.Vector2(t.hair.detailAcross, t.hair.detailAlong) },
     uHairRoot: { value: new THREE.Color(t.hair.root) },
     uHairDetail: { value: detailTex(`${ASSETS}/hair_strand_normal.png`, 1) },
@@ -233,6 +246,7 @@ export function setupHeroMaterials(root, tuning = HERO_TUNING) {
     sheen: t.hair.sheen,
     sheenColor: new THREE.Color(t.hair.sheenColor),
     sheenRoughness: t.hair.sheenRoughness,
+    specularIntensity: t.hair.specularIntensity,
     envMapIntensity: t.hair.envMapIntensity,
   });
   injectHair(hair, hairU);
@@ -243,6 +257,8 @@ export function setupHeroMaterials(root, tuning = HERO_TUNING) {
     uSssColor: { value: new THREE.Color(t.skin.sssColor) },
     uSssStrength: { value: t.skin.sssStrength },
     uSssWrap: { value: t.skin.sssWrap },
+    uSkinSat: { value: t.skin.skinSat },
+    uSkinMottle: { value: t.skin.skinMottle },
   };
   const skin = new THREE.MeshPhysicalMaterial({
     ...common,
@@ -290,6 +306,8 @@ export const ZOMBIE_TUNING = {
   roughLow: 0.30,     // wet, greasy exposed flesh
   roughHigh: 0.92,    // dry bone, rag, desiccated hide
   wear: 0.45,
+  albedoFloor: 0.050,
+  albedoGamma: 0.80,
   grainRepeat: 52,
   grainScale: 0.95,
   sssColor: 0x6f7a48,
@@ -317,9 +335,13 @@ export function setupZombieMaterials(root, tuning = ZOMBIE_TUNING) {
     uWear: { value: tuning.wear },
     uRoughLow: { value: tuning.roughLow },
     uRoughHigh: { value: tuning.roughHigh },
+    uAlbedoFloor: { value: tuning.albedoFloor },
+    uAlbedoGamma: { value: tuning.albedoGamma },
     uSssColor: { value: new THREE.Color(tuning.sssColor) },
     uSssStrength: { value: tuning.sssStrength },
     uSssWrap: { value: tuning.sssWrap },
+    uSkinSat: { value: 1.0 },
+    uSkinMottle: { value: 0.0 },
   };
   const mat = new THREE.MeshPhysicalMaterial({
     name: 'zombie_flesh',

@@ -135,11 +135,11 @@ export const TOD = {
     // any other bearing leaves the whole play floor in shade. This bearing rakes
     // the floor and throws long shadows toward camera.
     sun: { color: 0xffe3c0, intensity: 4.6, elevation: 20, azimuth: 205 },
-    fill: { color: 0x5a6e88, intensity: 0.55 },
+    fill: { color: 0x5a6e88, intensity: 0.30 },
     rim: { color: 0xbcd4f0, intensity: 1.25 },
     sky: { turbidity: 7.5, rayleigh: 2.6, mieCoefficient: 0.006, mieG: 0.72 },
     fog: { color: 0x8fa4b8, density: 0.030 },
-    env: 0.52,
+    env: 0.38,
     grade: {
       shadowTint: new THREE.Vector3(-0.020, -0.002, 0.040),
       highTint: new THREE.Vector3(0.040, 0.018, -0.016),
