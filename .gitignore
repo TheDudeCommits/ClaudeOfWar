@@ -1,7 +1,4 @@
-tools/Godot.app/
-game/.godot/
 web/node_modules/
 web/dist/
-*.import
 .DS_Store
 .godot.lock
