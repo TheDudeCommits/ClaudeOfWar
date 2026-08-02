@@ -1,0 +1,15 @@
+{
+  "_note": "Framing matched to reference/Reference/Gow5.jpg, measured off that plate with a 10% grid: horizon at y=0.42, hero body centred at x=0.34 spanning ~55% of frame height and cropped near the bottom edge, enemy on the combat plane right of centre, ground filling the lower ~55%. Camera solved analytically for those angles: height 1.62m, 3.5m from the hero, pitch -3.3deg, vertical FOV 50, riding the hero's right-rear quarter.",
+  "time_of_day": "cold_overcast",
+  "camera": {
+    "pos": [2.4, 1.62, 4.6],
+    "look_at": [0.2, 1.30, -0.5],
+    "focus_at": [1.336, 1.15, -0.796],
+    "fov": 50
+  },
+  "actors": {
+    "hero":   { "pos": [0.237, 0, 1.848],  "rot_y": 157.4 },
+    "zombie": { "pos": [1.336, 0, -0.796], "rot_y": 337.4 }
+  },
+  "settle": 60
+}

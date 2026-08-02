@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ClaudeOfWar</title>
+<style>
+  html,body{margin:0;height:100%;background:#05070a;overflow:hidden}
+  canvas{display:block;width:100%;height:100%}
+  #boot{position:fixed;inset:0;display:grid;place-items:center;color:#8b929c;
+        font:13px/1.6 ui-sans-serif,system-ui;letter-spacing:.4px;background:#05070a;
+        transition:opacity .6s;z-index:10}
+  #boot.gone{opacity:0;pointer-events:none}
+  #err{position:fixed;left:0;right:0;bottom:0;max-height:45%;overflow:auto;
+       background:#2a0d0d;color:#ffb4b4;font:12px/1.5 ui-monospace,monospace;
+       padding:10px 14px;white-space:pre-wrap;display:none;z-index:20}
+</style>
+  <script type="module" crossorigin src="/ClaudeOfWar/assets/index-egmaJVkT.js"></script>
+</head>
+<body>
+<div id="boot">loading…</div>
+<div id="err"></div>
+<script>
+  // Surface errors into the DOM so the puppeteer capture harness and the
+  // in-app browser both report failures instead of silently showing black.
+  const box = document.getElementById('err');
+  function show(m){ box.style.display='block'; box.textContent += m + '\n';
+                    window.__COW_ERROR = (window.__COW_ERROR||'') + m + '\n'; }
+  addEventListener('error', e => show('ERROR: ' + (e.message||e.error)));
+  addEventListener('unhandledrejection', e => show('REJECT: ' + (e.reason?.stack||e.reason)));
+</script>
+</body>
+</html>

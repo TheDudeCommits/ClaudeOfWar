@@ -1,0 +1,15 @@
+{
+  "_note": "CRITIC round 20. Framing re-measured off reference/Reference/Gow5.jpg with a 10% grid: Kratos' crown sits at y=0.44 of frame height (he is in a deep lunge; a standing 1.80m figure at the same camera lands ~0.41), his body axis at x=0.33, feet cropped by the bottom edge, the yard's far edge / structure base at y~0.45 so ground fills the lower ~55%, and the enemy he is striking sits at x=0.46 on the combat plane ~3m from him. Camera solved for that: height 1.62m, 5.0m along-axis from the hero, vertical FOV 50, riding the hero's right-rear quarter on a bearing that puts the stone arch and timber roof in the mid plane the way Gow5 puts its wooden bridge there. Enemy placed by projecting ndc_x=-0.08 at 6.3m along the optical axis.",
+  "time_of_day": "cold_overcast",
+  "camera": {
+    "pos": [2.4, 1.62, 4.6],
+    "look_at": [0.2, 1.42, -0.5],
+    "focus_at": [-0.47, 1.15, -1.01],
+    "fov": 50
+  },
+  "actors": {
+    "hero":   { "pos": [0.237, 0, 1.848], "rot_y": 193.9 },
+    "zombie": { "pos": [-0.47, 0, -1.01], "rot_y": 13.9 }
+  },
+  "settle": 70
+}

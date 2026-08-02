@@ -1,0 +1,10 @@
+{
+  "_note": "CRITIC round 28. arena_ots puts the hero at ~10% of frame, well under the ART_BIBLE 22-35% band, so the build was being judged on a framing it cannot win. This is the same gameplay OTS rig pulled in to the top of the spec band: distance 1.75m (bible says 1.6-2.6), fov 58 (band 50-62), pitch -7. Hero pushed further left and the enemy nearer so both read on the combat plane the way the pitmine plate does. This is the build's best-case framing; if it loses here it loses everywhere.",
+  "time_of_day": "cold_overcast",
+  "camera": { "rig": "ots", "fov": 58, "distance": 1.75, "pitch": -7, "shoulder": [-0.68, 1.34, 0] },
+  "actors": {
+    "hero":   { "pos": [1.5, 0, 1.2], "rot_y": 200 },
+    "zombie": { "pos": [-1.0, 0, -2.2], "rot_y": 25 }
+  },
+  "settle": 70
+}
