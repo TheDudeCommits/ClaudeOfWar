@@ -1,16 +1,69 @@
 {
-  "engine": "Three.js r185 \u00b7 WebGL2/ANGLE-Metal \u00b7 postprocessing 6.39 + N8AO \u00b7 1920\u00d71080 captures",
+  "engine": "Three.js r185 \u00b7 WebGL2/ANGLE-Metal \u00b7 quality presets \u00b7 target: 30 FPS on MacBook Air M2 8GB",
   "pieces": [
+    {
+      "id": "perf",
+      "name": "Performance (30 FPS floor)",
+      "status": "passed",
+      "round": 13,
+      "gap": null,
+      "win_note": "57.5 FPS p90 at 1920x1080 on the target MacBook Air M2 8GB, against a 30 FPS floor.",
+      "shots": [
+        {
+          "path": "shots/round13/arena_ots.png",
+          "label": "arena OTS \u00b7 shipped \"low\" preset, 57 FPS",
+          "round": 13
+        },
+        {
+          "path": "shots/round11/arena_ots.png",
+          "label": "same scene at native res (16 FPS)",
+          "round": 11
+        }
+      ],
+      "brief": ">=30 FPS at 1920x1080 on a fanless MacBook Air M2 8GB.",
+      "history": [
+        {
+          "round": 12,
+          "verdict": "FAIL",
+          "note": "baseline measured 4.8 FPS p50 \u2014 10x off target"
+        },
+        {
+          "round": 12,
+          "verdict": "FAIL",
+          "note": "SMAA pass cost 57ms of a 110ms frame; swapped for MSAA"
+        },
+        {
+          "round": 12,
+          "verdict": "FAIL",
+          "note": "ChromaticAberrationEffect is a CONVOLUTION effect forced into its own pass \u2014 ~40ms. Folded CA+grain+vignette into the grade shader as a 3-tap."
+        },
+        {
+          "round": 13,
+          "verdict": "FAIL",
+          "note": "2x MSAA on a half-float target cost 4.5x frame time (56->12 FPS). Dropped MSAA at every preset; resolution scale is the dial instead."
+        },
+        {
+          "round": 13,
+          "verdict": "PASS",
+          "note": "low preset: 57.5 FPS p90 / 60.2 p50 / 120 min. Texture VRAM 302MB -> 75MB."
+        }
+      ]
+    },
     {
       "id": "render-stack",
       "name": "Render & Post Stack",
       "status": "review",
-      "round": 11,
-      "gap": "black_point 0.0855 vs band 0.005-0.060 \u2014 indirect fill still lifts the darkest 0.1% of the frame; nothing is genuinely dark.",
+      "round": 13,
+      "gap": "Shipped preset renders at 0.60 scale, so the frame is visibly softer than native. black_point still 0.15 \u2014 milky.",
       "shots": [
         {
+          "path": "shots/round13/arena_ots.png",
+          "label": "arena OTS \u00b7 shipped \"low\" preset, 57 FPS",
+          "round": 13
+        },
+        {
           "path": "shots/round11/arena_ots.png",
-          "label": "arena OTS \u00b7 macro variation wired",
+          "label": "same scene at native res (16 FPS)",
           "round": 11
         }
       ],
@@ -49,6 +102,16 @@
           "round": 11,
           "verdict": "FAIL",
           "note": "6/7 objective gates pass; black_point is the last one out"
+        },
+        {
+          "round": 12,
+          "verdict": "FAIL",
+          "note": "my rewritten CA used caStrength 0.9 \u2014 displaced samples by a third of the screen, total rainbow corruption. Metrics still read 5/6 \"ok\" on a destroyed image."
+        },
+        {
+          "round": 13,
+          "verdict": "FAIL",
+          "note": "caStrength 0.9 -> 0.015 (~2px at 1080p); image restored"
         }
       ],
       "brief": "ACES tonemap, SSAO/SSIL/SSR, volumetric fog, bloom, DOF, CA, grain, vignette, colour grade. Judged on a fixed grey-box scene for mood and grade only."

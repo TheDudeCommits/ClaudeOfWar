@@ -1,49 +1,5 @@
 import { Effect, BlendFunction } from 'postprocessing';
-import { Uniform, Vector3 } from 'three';
-
-/**
- * Colour grade: filmic S-curve, saturation trim, and shadow/highlight split-tone.
- *
- * The reference plates measure at a lifted black point (~0.019) with a gentle
- * teal/orange split — cool shadows, warm highlights — and mean saturation near
- * 0.29. An untouched render sits at zero split and crushed blacks, which reads
- * instantly as "engine output" rather than "graded frame". See docs/REF_STATS.md.
- */
-const frag = /* glsl */`
-uniform vec3 shadowTint;
-uniform vec3 highTint;
-uniform float contrast;
-uniform float saturation;
-uniform float lift;
-uniform float gamma;
-
-// Approximate luma in gamma space; matches how the reference stats are measured.
-float luma(vec3 c){ return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
-
-void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
-  vec3 c = pow(max(inputColor.rgb, 0.0), vec3(gamma));
-
-  // Filmic S-curve around 0.5 pivot.
-  c = clamp((c - 0.5) * contrast + 0.5, 0.0, 1.0);
-  c = c * c * (3.0 - 2.0 * c) * 0.35 + c * 0.65;
-
-  float l = luma(c);
-  c = mix(vec3(l), c, saturation);
-
-  // Split-tone: weight tints by tone zone so shadows go cool and highs warm
-  // without flattening the midtones.
-  float sw = pow(1.0 - clamp(l, 0.0, 1.0), 2.0);
-  float hw = pow(clamp(l, 0.0, 1.0), 2.0);
-  c += shadowTint * sw + highTint * hw;
-
-  // Lift LAST so it actually sets the black floor. Applied before the S-curve
-  // it gets mapped back below zero by the contrast expansion and clamped to
-  // pure black — which is the single most conspicuous amateur tell.
-  c = max(c, 0.0) * (1.0 - lift) + lift;
-
-  outputColor = vec4(clamp(c, 0.0, 1.0), inputColor.a);
-}
-`;
+import { Uniform, Vector2, Vector3 } from 'three';
 
 /**
  * Scene exposure, applied in HDR before the tonemap.
@@ -67,6 +23,84 @@ export class ExposureEffect extends Effect {
   get exposure() { return this.uniforms.get('exposure').value; }
 }
 
+/**
+ * Final LDR finishing pass: chromatic aberration, filmic S-curve, saturation,
+ * split-tone, film grain and vignette — all in one shader.
+ *
+ * These were four separate library effects. `ChromaticAberrationEffect` is
+ * flagged as a CONVOLUTION effect, which forces it into a pass of its own and
+ * measured ~40ms of a 57ms frame on an M2 Air. A radial 3-tap does the same job
+ * for three texture reads, and folding grain/vignette in alongside it costs
+ * nothing extra since we are already sampling here.
+ *
+ * This effect must be the ONLY one in its pass: it reads `inputBuffer`
+ * directly, so it needs that buffer to be the tonemapped result rather than
+ * some earlier stage of a merged pass.
+ */
+const frag = /* glsl */`
+uniform vec3 shadowTint;
+uniform vec3 highTint;
+uniform float contrast;
+uniform float saturation;
+uniform float lift;
+uniform float gamma;
+uniform float caStrength;
+uniform float grainAmount;
+uniform float vignetteOffset;
+uniform float vignetteDarkness;
+uniform float time;
+
+float luma(vec3 c){ return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+
+float hash(vec2 p){
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
+  // Radial chromatic aberration: displace R and B outward from centre. Only
+  // the two side channels need extra taps — green stays put.
+  vec2 dir = uv - 0.5;
+  float r2 = dot(dir, dir);
+  vec2 off = dir * r2 * caStrength;
+  vec3 c = vec3(
+    texture2D(inputBuffer, uv + off).r,
+    inputColor.g,
+    texture2D(inputBuffer, uv - off).b
+  );
+
+  c = pow(max(c, 0.0), vec3(gamma));
+
+  // Filmic S-curve around 0.5 pivot.
+  c = clamp((c - 0.5) * contrast + 0.5, 0.0, 1.0);
+  c = c * c * (3.0 - 2.0 * c) * 0.35 + c * 0.65;
+
+  float l = luma(c);
+  c = mix(vec3(l), c, saturation);
+
+  // Split-tone: weight tints by tone zone so shadows go cool and highs warm
+  // without flattening the midtones.
+  float sw = pow(1.0 - clamp(l, 0.0, 1.0), 2.0);
+  float hw = pow(clamp(l, 0.0, 1.0), 2.0);
+  c += shadowTint * sw + highTint * hw;
+
+  // Lift LAST so it actually sets the black floor. Applied before the S-curve
+  // it gets mapped back below zero by the contrast expansion and clamped to
+  // pure black — the single most conspicuous amateur tell.
+  c = max(c, 0.0) * (1.0 - lift) + lift;
+
+  // Animated grain, weighted toward the midtones so it doesn't crawl in the
+  // blacks or fizz in the highlights.
+  float g = hash(uv * 1024.0 + fract(time) * 91.7) - 0.5;
+  c += g * grainAmount * (1.0 - abs(l * 2.0 - 1.0));
+
+  // Soft elliptical vignette.
+  float v = smoothstep(0.0, 1.0, 1.0 - (length(dir * vec2(1.0, 1.15)) - vignetteOffset));
+  c *= mix(1.0, clamp(v, 0.0, 1.0), vignetteDarkness);
+
+  outputColor = vec4(clamp(c, 0.0, 1.0), inputColor.a);
+}
+`;
+
 export class GradeEffect extends Effect {
   constructor(opts = {}) {
     super('GradeEffect', frag, {
@@ -78,8 +112,19 @@ export class GradeEffect extends Effect {
         ['saturation', new Uniform(opts.saturation ?? 0.92)],
         ['lift', new Uniform(opts.lift ?? 0.022)],
         ['gamma', new Uniform(opts.gamma ?? 1.0)],
+        // Displacement is dir*r2*caStrength, so at the frame corner (|dir|~0.7,
+        // r2~0.5) this yields ~0.005 uv ~= 2px at 1080p. Values near 1.0 shift
+        // samples by a third of the screen and produce rainbow garbage.
+        ['caStrength', new Uniform(opts.caStrength ?? 0.015)],
+        ['grainAmount', new Uniform(opts.grainAmount ?? 0.055)],
+        ['vignetteOffset', new Uniform(opts.vignetteOffset ?? 0.24)],
+        ['vignetteDarkness', new Uniform(opts.vignetteDarkness ?? 0.62)],
+        ['time', new Uniform(0)],
       ]),
     });
+  }
+  update(renderer, inputBuffer, dt) {
+    this.uniforms.get('time').value += dt;
   }
   set(k, v) {
     const u = this.uniforms.get(k);

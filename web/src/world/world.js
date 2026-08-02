@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
-import { TOD } from '../core/rendering.js';
+import { TOD, QUALITY } from '../core/rendering.js';
 
 /**
  * Sky, sun, fill/rim lights, fog and image-based lighting.
@@ -24,7 +24,7 @@ export class World {
     this.sun = new THREE.DirectionalLight(0xffffff, 4);
     this.sun.castShadow = true;
     const s = this.sun.shadow;
-    s.mapSize.set(4096, 4096);
+    s.mapSize.set(QUALITY.shadow, QUALITY.shadow);
     // The sun sits 60 units out, so the shadow volume only needs to bracket
     // that. VSM stores depth variance and loses all contrast when the near/far
     // range is wide — a 0.5→120 range washes shadows out entirely.
@@ -37,7 +37,7 @@ export class World {
     s.bias = -0.0004;
     s.normalBias = 0.022;
     s.radius = 1.6;
-    s.blurSamples = 10;
+    s.blurSamples = 6;
     scene.add(this.sun);
     scene.add(this.sun.target);
 
