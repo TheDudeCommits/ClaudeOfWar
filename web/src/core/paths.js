@@ -10,5 +10,10 @@
 const BASE = import.meta.env.BASE_URL || '/';
 
 export function asset(p) {
-  return BASE.replace(/\/$/, '/') + String(p).replace(/^\//, '');
+  const s = String(p);
+  // Idempotent: several modules resolve a directory once and then resolve the
+  // full file path again, which would otherwise yield /base/base/... and 404.
+  if (BASE !== '/' && s.startsWith(BASE)) return s;
+  if (/^(https?:)?\/\//.test(s)) return s;
+  return BASE.replace(/\/?$/, '/') + s.replace(/^\//, '');
 }

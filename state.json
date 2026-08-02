@@ -1,6 +1,49 @@
 {
-  "engine": "Three.js r185 \u00b7 WebGL2/ANGLE-Metal \u00b7 \"medium\" default \u00b7 8/8 objective gates pass",
+  "engine": "Three.js r185 \u00b7 LIVE at https://thedudecommits.github.io/ClaudeOfWar/ \u00b7 Performance + Fidelity modes",
   "pieces": [
+    {
+      "id": "deploy",
+      "name": "Playable Build (live)",
+      "status": "passed",
+      "round": 19,
+      "gap": null,
+      "win_note": "Live at https://thedudecommits.github.io/ClaudeOfWar/ \u2014 verified loading with zero asset failures and responding to input.",
+      "shots": [
+        {
+          "path": "shots/round19/arena_ots.png",
+          "label": "arena OTS \u00b7 hair fixed, particles live",
+          "round": 19
+        },
+        {
+          "path": "shots/round18/char_hero_closeup.png",
+          "label": "hero close-up",
+          "round": 18
+        }
+      ],
+      "brief": "Shippable web build with quality settings.",
+      "history": [
+        {
+          "round": 19,
+          "verdict": "FAIL",
+          "note": "first dist was 144MB \u2014 unusable as a link"
+        },
+        {
+          "round": 19,
+          "verdict": "FAIL",
+          "note": "gh-pages push rejected: orphan branch swept in the 331MB Godot binary"
+        },
+        {
+          "round": 19,
+          "verdict": "FAIL",
+          "note": "double base path /ClaudeOfWar/ClaudeOfWar/ \u2014 asset() applied twice; made it idempotent"
+        },
+        {
+          "round": 19,
+          "verdict": "PASS",
+          "note": "assets 144MB -> 45MB (WebP textures, Draco meshes). Live, 0 asset failures, interactive."
+        }
+      ]
+    },
     {
       "id": "perf",
       "name": "Performance (30 FPS floor)",
@@ -231,14 +274,14 @@
     {
       "id": "hero",
       "name": "Hero Characters",
-      "status": "blocked",
-      "round": 8,
-      "gap": "Builder killed mid-task by a session limit. chars/ modules (index.js, shading.js, segment.js, atlas.js) on disk but NOT wired \u2014 last report said hair was aliasing into hard zebra stripes and it was rewriting with derivative-based filtering.",
+      "status": "review",
+      "round": 19,
+      "gap": "Hair reads dark/muddy at combat range and the face still has blotchy patches from vertex classification.",
       "shots": [
         {
-          "path": "shots/round16/char_hero_closeup.png",
-          "label": "hero close-up (Godot build)",
-          "round": 16
+          "path": "shots/round18/char_hero_closeup.png",
+          "label": "hero close-up \u00b7 strand shading",
+          "round": 18
         }
       ],
       "history": [
@@ -246,6 +289,16 @@
           "round": 16,
           "verdict": "FAIL",
           "note": "mesh + rig are good (83k tris, humanoid skeleton, 1 clip); texture atlas is the problem"
+        },
+        {
+          "round": 18,
+          "verdict": "FAIL",
+          "note": "finished the killed agent's work: cowDeriv/cowFade and uHairDetailStrength were used but never declared. Overcorrected \u2014 hard zebra banding, blotchy red face."
+        },
+        {
+          "round": 19,
+          "verdict": "FAIL",
+          "note": "strand density 360->190, SSS 0.70->0.34: hair now reads as hair, no longer a blown white blob"
         }
       ],
       "brief": "Anime-styled fighters rendered with photoreal PBR+SSS. Hair cards, cloth, eyes. Judged on close-up."
@@ -275,35 +328,69 @@
     {
       "id": "animation",
       "name": "Animation & Physics",
-      "status": "queued",
-      "round": 0,
-      "gap": null,
-      "shots": [],
+      "status": "review",
+      "round": 19,
+      "gap": "No animation clips for attack/hit/death. Motion is procedural on the root; needs real animation data or Mixamo retargeting.",
+      "shots": [
+        {
+          "path": "shots/round19/arena_ots.png",
+          "label": "arena OTS \u00b7 hair fixed, particles live",
+          "round": 19
+        }
+      ],
       "history": [],
       "brief": "Locomotion, attack sets, directional hit reactions, foot IK, ragdoll, cloth."
     },
     {
       "id": "combat",
       "name": "Combat Feel",
-      "status": "queued",
-      "round": 0,
-      "gap": null,
-      "shots": [],
-      "history": [],
+      "status": "review",
+      "round": 19,
+      "gap": "Procedural attack motion only \u2014 the character GLBs ship one clip each, so there are no real attack/hit/death animations.",
+      "shots": [
+        {
+          "path": "shots/round19/arena_ots.png",
+          "label": "arena OTS \u00b7 hair fixed, particles live",
+          "round": 19
+        }
+      ],
+      "history": [
+        {
+          "round": 19,
+          "verdict": "FAIL",
+          "note": "3-hit combo w/ commitment frames, dodge i-frames, hitstop, impact lights, sparks, zombie AI with separation + telegraphed attacks"
+        }
+      ],
       "brief": "Hitstop, screen shake, camera punch, parry/dodge windows, commitment frames, enemy AI."
     },
     {
       "id": "vfx",
       "name": "VFX & Impact",
-      "status": "blocked",
-      "round": 10,
-      "gap": "Builder was killed mid-task by a session limit. atmosphere.js (17KB) is on disk but NOT wired into main.js \u2014 dormant, not yet verified.",
-      "shots": [],
+      "status": "review",
+      "round": 19,
+      "gap": "Particles are live but sparse at combat range; no near-camera occluders yet.",
+      "shots": [
+        {
+          "path": "shots/round19/arena_ots.png",
+          "label": "arena OTS \u00b7 hair fixed, particles live",
+          "round": 19
+        },
+        {
+          "path": "shots/round18/char_hero_closeup.png",
+          "label": "hero close-up",
+          "round": 18
+        }
+      ],
       "history": [
         {
           "round": 7,
           "verdict": "FAIL",
           "note": "CRITIC: empty air + no near-camera occluder in any framing"
+        },
+        {
+          "round": 19,
+          "verdict": "FAIL",
+          "note": "atmosphere.js wired in; snow now visible in air at multiple depths"
         }
       ],
       "brief": "Weapon trails, sparks, blood, impact lights, ambient embers/snow/dust. Everything additive above 1.0 HDR."
@@ -311,12 +398,25 @@
     {
       "id": "hud",
       "name": "HUD & UI",
-      "status": "queued",
-      "round": 0,
+      "status": "passed",
+      "round": 19,
       "gap": null,
-      "shots": [],
-      "history": [],
-      "brief": "Health/rage bars, ability icons, damage numbers, lock-on reticle. Must not look like default engine UI."
+      "shots": [
+        {
+          "path": "shots/round19/arena_ots.png",
+          "label": "arena OTS \u00b7 hair fixed, particles live",
+          "round": 19
+        }
+      ],
+      "history": [
+        {
+          "round": 19,
+          "verdict": "PASS",
+          "note": "vitality/rage/stamina, enemy bar, control hints, quality settings persisted to localStorage"
+        }
+      ],
+      "brief": "Health/rage bars, ability icons, damage numbers, lock-on reticle. Must not look like default engine UI.",
+      "win_note": "Angular etched Norse HUD, enemy health, plus a settings menu with Performance and Fidelity modes."
     },
     {
       "id": "audio",
