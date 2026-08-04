@@ -48,6 +48,9 @@ const _zero = new THREE.Vector3();
 // for every enemy after it.
 const _hurtV = new THREE.Vector3();
 const _knockV = new THREE.Vector3();
+// Ground friction while staggered. Low on purpose: the shove has to carry far
+// enough to be read as force and to buy the player recovery time.
+const STAGGER_FRICTION = 2.6;
 const ARENA_R = 9.0;   // keep actors inside the dressed floor
 
 /* ------------------------------- input ------------------------------- */
@@ -121,19 +124,37 @@ export class Actor {
       const dir = _knockV.copy(fromDir).setY(0).normalize();
       this.vel.addScaledVector(dir, impulse / (this.mass ?? 1));
     }
+    // Severity drives EVERYTHING downstream: stun length, recoil depth and
+    // whether this reads as a flinch or a stumble. Derived from the impulse the
+    // blow actually carried relative to this body's mass, so a heavy fighter
+    // shrugs off what folds a light one.
+    const sev = THREE.MathUtils.clamp(impulse / (this.mass ?? 1) / 4.0, 0, 1);
     if (this.anim) {
       const local = _hurtV.copy(fromDir).setY(0).normalize()
         .applyAxisAngle(UP, -this.root.rotation.y);
-      this.anim.onHit(THREE.MathUtils.clamp(local.x, -1, 1));
+      this.anim.onHit(THREE.MathUtils.clamp(local.x, -1, 1), sev);
     }
+    this.hitSeverity = Math.max(this.hitSeverity || 0, sev);
+    // Stagger was previously assigned by the CALLER, so only the player's own
+    // swing produced one and every other damage source was silent.
+    this.stagger = Math.max(this.stagger || 0, 0.22 + sev * 0.55);
+    // A staggered body cannot be mid-swing. Without this the target stayed in
+    // estate:"attack" all the way through being hit and the swing landed
+    // anyway, which is why hits had no defensive value.
+    // Only a blow with real weight interrupts a swing. Cancelling on every
+    // scratch would make the player's combo unusable the moment two draugr are
+    // in range, and chip damage should not buy the pack a free interrupt.
+    if (this.state === 'attack' && sev > 0.25) { this.state = 'stagger'; this.t = 0; }
+    this._releaseToken = true;
     // Directional additive recoil rather than a canned reaction clip.
-    this._recoil.copy(fromDir).setY(0).normalize().multiplyScalar(0.22);
+    this._recoil.copy(fromDir).setY(0).normalize().multiplyScalar(0.22 + sev * 0.45);
     if (this.hp <= 0) { this.dead = true; this._deathT = 0; }
     return true;
   }
 
   updateCommon(dt) {
     this._flash = Math.max(0, this._flash - dt * 5);
+    this.hitSeverity = Math.max(0, (this.hitSeverity || 0) - dt * 1.6);
     this._recoil.multiplyScalar(Math.exp(-12 * dt));
     if (this.dead) {
       this._deathT = Math.min(1, this._deathT + dt * 1.6);
@@ -418,7 +439,9 @@ export class Player extends Actor {
       // the target reads as a decal rather than as force.
       const impulse = this.combo === 2 ? 9.5 : 3.2;
       e.hurt(dmg, to, impulse);
-      e.stagger = this.combo === 2 ? 0.85 : 0.42;
+      // Max, not assign: hurt() already derived a stagger from the impulse and
+      // this must not clobber it downward on a heavy blow.
+      e.stagger = Math.max(e.stagger, this.combo === 2 ? 0.85 : 0.42);
       hit++;
       this.rage = Math.min(100, this.rage + 8);
       if (e.dead) fx.audio?.death();
@@ -436,6 +459,8 @@ export class Zombie extends Actor {
   constructor(root) {
     super(root, { hp: 100, speed: 1.55, radius: 0.42, mass: 1.0 });
     this.stagger = 0;
+    this.hitSeverity = 0;
+    this._releaseToken = false;
     this.attackCd = 1.2 + Math.random();
     this.state = 'idle';
     this.telegraph = 0;
@@ -470,7 +495,23 @@ export class Zombie extends Actor {
     if (dist > 1e-3) this.face = Math.atan2(to.x, to.z);
 
     if (this.stagger > 0) {
-      this.vel.multiplyScalar(Math.exp(-10 * dt));
+      // RIDE the knockback. This branch used to damp velocity at 10/s, which
+      // is exp(-10*0.245) = 0.086 -- 91% of the impulse gone inside 245ms.
+      // Measured consequence: a light hit peaked at 1.6 m/s, netted ~5cm, and
+      // the enemy then CLOSED distance (1.418 -> 1.072 m) because the walk
+      // resumed while the player was still in swing recovery. A hit that does
+      // not move the target reads as a decal rather than as force. Ground
+      // friction only, so the shove actually carries.
+      this.vel.multiplyScalar(Math.exp(-STAGGER_FRICTION * dt));
+      this.state = 'stagger';
+      // Hand the attack token back the moment the swing is interrupted.
+      // Holding it through a stagger let a staggered draugr keep one of the
+      // director's two slots reserved while it was incapable of using it, so
+      // the pack went quiet every time the player connected.
+      if (this._releaseToken) {
+        if (this.hasToken && this.director) this.director.release(this);
+        this._releaseToken = false;
+      }
     } else if (!this.hasToken && this.ringTarget) {
       // No token: hold a slot on the ring and face the player. Circling rather
       // than crowding is what makes the pack readable and gives the player

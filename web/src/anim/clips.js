@@ -169,7 +169,14 @@ export class ClipAnimator {
 
   get ok() { return this.rig.ok && Object.keys(this.actions).length > 0; }
 
-  onHit(localDirX) { this.hit = 1; this.hitDir = localDirX; }
+  onHit(localDirX, severity = 0.35) {
+    this.hit = 1;
+    this.hitDir = localDirX;
+    // Severity separates a flinch from a stumble. Previously every hit
+    // produced the same ~17 degrees of spine for 220ms regardless of weight,
+    // so a heavy finisher and a jab were visually identical.
+    this.hitSev = THREE.MathUtils.clamp(severity, 0, 1);
+  }
 
   /** Cross-fade weights toward `name` without restarting the clip. */
   _target(name, dt, rate = 1) {
@@ -299,10 +306,32 @@ export class ClipAnimator {
     }
 
     if (this.hit > 0) {
-      this.hit = Math.max(0, this.hit - dt * 4.5);
+      // A heavy blow holds the body longer than a jab: decay slows with
+      // severity. At a flat 4.5/s every hit was ~220ms of the same 17 degrees.
+      const sev = this.hitSev ?? 0.35;
+      this.hit = Math.max(0, this.hit - dt * (5.6 - sev * 3.0));
       const h = this.hit * this.hit;
-      this.rig.addRot('Spine01', -0.30 * h, 0, this.hitDir * 0.34 * h);
-      this.rig.addRot('neck', -0.22 * h, 0, this.hitDir * 0.26 * h);
+      const g = 0.55 + sev * 1.45;          // 0.55x flinch .. 2.0x stumble
+
+      // The whole chain absorbs it, not just the upper spine. A hit that only
+      // bends Spine01 reads as a puppet nodding; a real one travels down
+      // through the hips and buckles the near knee.
+      this.rig.addRot('Spine01', -0.30 * h * g, 0, this.hitDir * 0.34 * h * g);
+      this.rig.addRot('Spine', -0.16 * h * g, 0, this.hitDir * 0.20 * h * g);
+      this.rig.addRot('neck', -0.22 * h * g, 0, this.hitDir * 0.26 * h * g);
+      this.rig.addRot('Hips', 0.10 * h * g, 0, this.hitDir * 0.14 * h * g);
+      // Arms fly up and out on the struck side -- the single most legible
+      // "that hurt" cue, and free here because these are additive.
+      const near = this.hitDir >= 0 ? 'Left' : 'Right';
+      const far = this.hitDir >= 0 ? 'Right' : 'Left';
+      this.rig.addRot(near + 'Arm', -0.45 * h * g, 0, this.hitDir * 0.40 * h * g);
+      this.rig.addRot(near + 'ForeArm', -0.55 * h * g, 0, 0);
+      this.rig.addRot(far + 'Arm', -0.20 * h * g, 0, 0);
+      // Buckle the knee under a heavy hit so the body loses height with it.
+      if (sev > 0.4) {
+        this.rig.addRot(near + 'UpLeg', 0.22 * h * (sev - 0.4), 0, 0);
+        this.rig.addRot(near + 'Leg', -0.40 * h * (sev - 0.4), 0, 0);
+      }
     }
 
     // ANALYTIC SEED + ONE MEASURED TRIM.
